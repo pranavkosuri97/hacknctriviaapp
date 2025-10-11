@@ -92,10 +92,11 @@ export default function GameRoom({ gameState, onAnswer, currentUserId }: GameRoo
                         return (
                             <li
                                 key={player.user.username}
-                                className={`grid grid-cols-2 items-center px-2 py-1 rounded ${isCurrent ? "bg-yellow-100" : submittedColor || "bg-gray-100"}`}
+                                className={`grid grid-cols-3 items-center px-2 py-1 rounded ${isCurrent ? "bg-yellow-100" : submittedColor || "bg-gray-100"}`}
                             >
                                 <span>{player.user.username}</span>
                                 <span className="font-mono text-right">{player.points} pts</span>
+                                <span className="font-mono text-right text-gray-500">ELO: {player.user.rating ?? "N/A"}</span>
                             </li>
                         );
                     })}
