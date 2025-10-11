@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/a11y/noSvgWithoutTitle: Boilerplate */
 "use client";
 
 import { useState } from "react";
