@@ -1,5 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
 /**
  * Especially important if using Fluid compute: Don't put this client in a
@@ -31,4 +33,19 @@ export async function createClient() {
       },
     },
   );
+}
+
+export async function getCurrentUserClient(): Promise<{
+  client: SupabaseClient;
+  userId: string;
+}> {
+  const supabase: SupabaseClient = await createClient();
+
+  const { data, error } = await supabase.auth.getClaims();
+  if (error || !data?.claims) {
+    console.log("Error getting supabase client", error);
+    redirect("/auth/login");
+  }
+
+  return { client: supabase, userId: data.claims.sub };
 }
