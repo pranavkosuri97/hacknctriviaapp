@@ -7,16 +7,16 @@
 
 export interface GameResult {
     id: number;
-    game_id: string;
+    game_id: string | null;
     player_id: string;
     played_at: Date;
-    result: GameOutcome;
+    result: GameOutcome | null;
     rating_change: number;
     rating_result: number;
 }
 
 export enum GameOutcome {
-    WIN = "win",
-    DRAW = "draw",
-    LOSS = "loss",
+    WIN = "WIN",
+    DRAW = "DRAW",
+    LOSS = "LOSS",
 }

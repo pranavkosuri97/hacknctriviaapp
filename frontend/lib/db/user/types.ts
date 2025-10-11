@@ -4,6 +4,7 @@
 
 // internal
 
+export const DEFAULT_RATING: number = 100;
 
 export interface User {
     user_id: string,
