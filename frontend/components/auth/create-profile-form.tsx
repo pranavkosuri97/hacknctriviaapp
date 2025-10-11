@@ -11,8 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { createClient } from "@/lib/supabase/client";
-import { createProfile } from "@/lib/auth/actions";
 
 
 export function CreateProfileForm() {
@@ -60,8 +58,11 @@ export function CreateProfileForm() {
         setErrors({});
 
         try {
-            const supabase = createClient();
-            await createProfile(supabase, formData);
+            await fetch("/api/auth/create-profile", {
+                method: "POST",
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            })
             router.push("/dashboard");
         } catch (error) {
             console.error("Profile creation error:", error);
