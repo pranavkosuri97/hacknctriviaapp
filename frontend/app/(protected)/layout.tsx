@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUserClient } from "@/lib/supabase/server";
 import { getUserById } from "@/lib/db/user/crud";
 import type { User } from "@/lib/db/user/types";
+import Sidebar from "@/components/sidebar";
 
 
 export default async function ProtectedLayout({
@@ -22,8 +23,11 @@ export default async function ProtectedLayout({
     }
 
     return (
-        <div>
-            {children}
+        <div className="flex">
+            <Sidebar />
+            <main className="flex-1">{/* space for sidebar */}
+                {children}
+            </main>
         </div>
     );
 }
