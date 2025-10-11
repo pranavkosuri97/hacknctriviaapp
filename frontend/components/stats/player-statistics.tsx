@@ -6,10 +6,10 @@ import { useId, useState } from "react";
 
 // internal
 import type { User } from "@/lib/db/user/types";
-import { formatGameId, getAccumulatedChange, getFilteredResults, getRatingData } from "@/lib/dashboard/actions";
+import { formatGameId, getAccumulatedChange, getFilteredResults, getRatingData } from "@/lib/stats/actions";
 import { GameOutcome, type GameResult } from "@/lib/db/game_results/types";
 import { RatingGraph } from "./rating-graph";
-import { TIME_SCALES } from "@/lib/dashboard/types";
+import { TIME_SCALES } from "@/lib/stats/types";
 
 
 export interface PlayerStatisticsProps {
