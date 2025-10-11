@@ -5,7 +5,7 @@
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 // internal
-import type { GraphData } from "@/lib/dashboard/types";
+import type { GraphData } from "@/lib/stats/types";
 
 
 interface RatingGraphProps {
