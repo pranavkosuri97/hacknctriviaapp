@@ -112,12 +112,15 @@ class TriviaGame:
         question = self.questions[self.current_question_index]
         is_correct = question.answer_correct(answer)
         points_earned = POINTS_CORRECT if is_correct else 0
-
+        can_advance = False
         if len(self.current_answers) < 2:
             self.players[player_id].update_score(points_earned)
             self.current_answers.add(player_id)
+            if is_correct or len(self.current_answers) == 2:
+                can_advance = True
         else:
-            return {"status": "all_answered"}
+            can_advance = True  # Both players have already answered
+
         
         payload = {
             "game_id": str(self.id),
@@ -127,6 +130,7 @@ class TriviaGame:
             "points_earned": points_earned,
             "current_scores": self.get_scores(),
             "question_number": self.get_question_number(),
+            "can_advance": can_advance,
         }
         await self._dispatch_event("answer_received", payload)
 
