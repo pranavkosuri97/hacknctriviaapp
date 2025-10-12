@@ -24,6 +24,8 @@ class Question:
         # Optional metadata
         self.category = category
         self.difficulty = difficulty
+
+        self.answered_correctly = False
         
         for i in range(min(len(choices), NUM_CHOICES)):
             self.choices[i] = choices[i]

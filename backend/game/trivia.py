@@ -116,6 +116,8 @@ class TriviaGame:
 
         question = self.questions[self.current_question_index]
         is_correct = question.answer_correct(answer)
+        if is_correct:
+            question.answered_correctly = True
         points_earned = POINTS_CORRECT if is_correct else 0
         can_advance = False
         if len(self.current_answers) < 2:
@@ -148,6 +150,7 @@ class TriviaGame:
         """Public hook for managers to force-advance the game."""
         if self.is_finished:
             return
+        self.questions[self.current_question_index].answered_correctly = False
         await self._advance_to_next_question()
 
     def get_question_number(self) -> int:
@@ -282,8 +285,9 @@ class TriviaGame:
 
     def get_snapshot(self) -> Dict[str, Any]:
         """Get a snapshot of the current game state."""
-        can_advance = len(self.current_answers) == 2 or (len(self.current_answers) == 1 and ((self.players["player1"].get_score() + self.players["player2"].get_score()) / POINTS_CORRECT) == (self.current_question_index + 1))
-        
+
+        can_advance = len(self.current_answers) == 2 or self.questions[self.current_question_index].answered_correctly
+
         return {
             "game_id": str(self.id),
             "is_running": self.is_running,
