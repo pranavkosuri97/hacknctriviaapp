@@ -19,7 +19,7 @@ interface GameRoomProps {
 }
 
 export default function GameRoom({ gameState, userId, gameId }: GameRoomProps) {
-    const { currentQuestion, players } = gameState;
+    const { currentQuestion, players, closed } = gameState;
     const [selected, setSelected] = useState<number | null>(null);
     const [submitted, setSubmitted] = useState(false);
     const { send } = useWebSocket<GameRequest, GameMessage>(
@@ -40,6 +40,10 @@ export default function GameRoom({ gameState, userId, gameId }: GameRoomProps) {
         }
     };
 
+    const handleAdvance = () => {
+        // send to websocket
+    }
+
     // biome-ignore lint/correctness/useExhaustiveDependencies: Just wrong
     useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => {
@@ -55,6 +59,12 @@ export default function GameRoom({ gameState, userId, gameId }: GameRoomProps) {
             if (e.key === "Enter") {
                 if (selected !== null) {
                     handleSubmit();
+                }
+            }
+
+            if (e.key === "N") {
+                if (closed) {
+                    handleAdvance();
                 }
             }
         };
@@ -81,14 +91,25 @@ export default function GameRoom({ gameState, userId, gameId }: GameRoomProps) {
                             </button>
                         ))}
                     </div>
-                    <button
-                        type="button"
-                        className="mt-4 px-6 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
-                        onClick={handleSubmit}
-                        disabled={selected === null || submitted}
-                    >
-                        Submit Answer
-                    </button>
+                    <div className="flex justify-between w-full mt-4">
+                        <button
+                            type="button"
+                            className="px-6 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
+                            onClick={handleSubmit}
+                            disabled={selected === null || submitted}
+                        >
+                            Submit Answer
+                        </button>
+
+                        <button
+                            type="button"
+                            className="px-6 py-2 bg-violet-600 text-white rounded disabled:opacity-50"
+                            onClick={handleAdvance}
+                            disabled={!closed}
+                        >
+                            Next Question
+                        </button>
+                    </div>
                     {submitted && <div className="mt-2 text-green-600">Answer submitted!</div>}
                 </div>
             </div>

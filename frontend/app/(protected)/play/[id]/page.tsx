@@ -4,10 +4,13 @@
 
 // internal
 import GameRoomClient from "@/components/play/game-client";
+import { getCurrentUserClient } from "@/lib/supabase/server";
 
-export default function GamePage() {
+export default async function GamePage() {
+
+    const { userId } = await getCurrentUserClient();
 
     return (
-        <GameRoomClient />
+        <GameRoomClient userId={userId} />
     );
 }
