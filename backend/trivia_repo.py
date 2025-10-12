@@ -139,6 +139,7 @@ class TriviaRepo:
                 "winner": winner,
             },
         )).eq("id", game_id)
+        print(f"marked game {game_id} ended: {reason}, winner: {winner}")
 
         updates = []
         for role, score in final_scores.items():
@@ -152,12 +153,14 @@ class TriviaRepo:
                     "ending_elo": ending_elo,
                 }
             )
-
+        print("updates for db: ", updates)
         for u in updates:
             (await self._run(
                 self.sb.table("game_participants").update,
                 {"final_score": u["final_score"], "ending_elo": u["ending_elo"]},
             )).eq("game_id", game_id).eq("player_id", u["player_id"])
+        
+        print("updated participant elos")
 
         res = await self._run(
             self.sb.table("game_participants")
@@ -166,7 +169,7 @@ class TriviaRepo:
             .execute
         )
         rows = res().data if callable(res) else res.data
-
+        print("fetched participant elos: ", rows)
         for row in rows:
             player_id = row["player_id"]
             old_elo = row.get("starting_elo", None)
@@ -175,6 +178,7 @@ class TriviaRepo:
                 (await self._run(
                     self.sb.table("players").update, {"elo": new_elo}
                 )).eq("id", player_id)
+                print(f"updated player {player_id} current elo to {new_elo}")
             if old_elo is not None and new_elo is not None:
                 await self._run(
                     self.sb.table("elo_history").insert,
@@ -185,8 +189,4 @@ class TriviaRepo:
                         "new_elo": new_elo,
                     },
                 )
-
-        await self._run(
-            self.sb.table("game_events").insert,
-            {"game_id": game_id, "type": "game_ended", "payload": raw_payload},
-        )
+                print(f"updated player {player_id} elo: {old_elo} -> {new_elo}")
