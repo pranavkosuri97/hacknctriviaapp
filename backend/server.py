@@ -20,6 +20,9 @@ class CreateGameRequest(BaseModel):
     timer_length: int = 300
     num_questions: int = 10
 
+class AnswerRequest(BaseModel):
+    game_id: str
+    question_number: int
 
 app = FastAPI()
 
@@ -50,6 +53,26 @@ async def create_game(payload: CreateGameRequest) -> dict[str, Any]:
         num_questions=payload.num_questions,
     )
     return {"game_id": game_id}
+
+@app.get("/games/{player_id}")
+async def get_player_games(player_id: str) -> dict[str, Any]:
+    game_history = await game_manager.repo.get_player_history(player_id)
+    return {"player": player_id, "games": game_history}
+
+@app.post("/answers")
+async def get_game_answer(payload: AnswerRequest) -> dict[str, Any]:
+    game_id = payload.game_id
+    question_number = payload.question_number
+
+    game = game_manager.get_game(game_id)
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
+
+    question = game.questions[question_number]
+    if not question:
+        raise HTTPException(status_code=404, detail="Question not found")
+
+    return {"game_id": game_id, "question_number": question_number, "answer": question.answer}
 
 @app.websocket("/ws/hello")
 async def hello_websocket(websocket: WebSocket) -> None:

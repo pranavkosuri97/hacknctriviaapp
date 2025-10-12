@@ -24,7 +24,7 @@ class GameManager:
         timer_length: int = 300,
         num_questions: int = 10,
     ) -> str:
-        game = TriviaGame(player1, player2, timer_length=timer_length, num_questions=num_questions)
+        game = TriviaGame(player1, player2, timer_length, num_questions)
         game.set_event_callback(self.handle_game_event)
 
         game_id = game.get_id()
@@ -34,14 +34,6 @@ class GameManager:
 
         loop_task = asyncio.create_task(game.run_game_loop())
         self._loop_tasks[game_id] = loop_task
-
-        await self.repo.record_game_started(
-            game_id=game_id,
-            p1=player1,
-            p2=player2,
-            timer_length=timer_length,
-            num_questions=num_questions,
-        )
         return game_id
 
     async def end_game(self, game_id: str) -> None:
@@ -76,15 +68,17 @@ class GameManager:
                 g = self.games.get(game_id)
                 p1 = g.players["player1"].playerModel
                 p2 = g.players["player2"].playerModel
+                p1_elo = payload.get("player_elos_after")["player1"]
+                p2_elo = payload.get("player_elos_after")["player2"]
+                print(p1_elo, p2_elo)
                 await self.repo.record_game_ended(
                     game_id=game_id,
                     reason=payload.get("reason"),
                     winner=payload.get("winner"),
-                    final_scores=payload.get("final_scores", {}),
-                    player_elos=payload.get("player_elos", {}),
-                    p1_id=p1.id,
-                    p2_id=p2.id,
-                    raw_payload=payload,
+                    player1=p1.id,
+                    player2=p2.id,
+                    p1_elo=p1_elo,
+                    p2_elo=p2_elo,
                 )
         except Exception as e:
             print(f"[PERSISTENCE ERROR] {event_type} {game_id}: {e}")

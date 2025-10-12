@@ -120,19 +120,24 @@ export default function GameRoom({ gameState, userId, gameId }: GameRoomProps) {
                     </div>
                 </div>
                 <div className="mb-6">
-                    <div className="text-lg font-semibold mb-2">{state.currentQuestion.question}</div>
                     <div className="grid grid-cols-1 gap-2">
-                        {state.currentQuestion.choices?.map((choice, idx) => (
+                        {state.currentQuestion.choices?.map((choice, idx) => {
+                            let buttonColor = (selected === idx) ? "bg-blue-100 border-blue-500" : "bg-gray-50";
+                            if (state.closed) {
+                                buttonColor = (choice === state.currentQuestion.answer) ? "bg-green-600" : "bg-gray-300";
+                            }
+                            return (
                             <button
                                 type="button"
                                 key={choice}
-                                className={`border rounded px-4 py-2 text-left ${selected === idx ? "bg-blue-100 border-blue-500" : "bg-gray-50"}`}
+                                className={`border rounded px-4 py-2 text-left ${buttonColor}`}
                                 onClick={() => handleSelect(idx)}
                                 disabled={submitted}
                             >
                                 <span className="font-bold mr-2">{idx + 1}.</span> {choice}
                             </button>
-                        ))}
+                        )}
+                        )}
                     </div>
                     <div className="flex justify-between w-full mt-4">
                         <button

@@ -17,7 +17,7 @@ export default async function CreateProfilePage() {
                         Welcome! 👋
                     </h1>
                     <p className="text-gray-600">
-                        Let's set up your profile to get started
+                        Let&apos;s set up your profile to get started
                     </p>
                 </div>
 

@@ -25,7 +25,6 @@ export default function GameModeSelector({ user }: GameModeSelectorProps) {
     const router = useRouter();
     const selectorId = useId();
     const { send } = useWebSocket<QueueRequest, QueueMessage>(`${WEBSOCKET_URL}/ws/lobby/${user.user_id}`, (data) => {
-        console.log(data);
         if (data.type === QueueResponse.GAME_FOUND) {
             router.push(`/play/${data.game_id}`);
         }

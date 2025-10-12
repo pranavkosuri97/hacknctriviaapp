@@ -8,7 +8,6 @@ import { NextResponse } from "next/server";
 import { getCurrentUserClient } from "@/lib/supabase/server";
 import { createUser, getUserById, usernameExists } from "@/lib/db/user/crud";
 import { DEFAULT_RATING, type User } from "@/lib/db/user/types";
-import { createNewUserGameResult } from "@/lib/db/game_results/crud";
 
 export async function POST(request: NextRequest) {
     try {
@@ -63,7 +62,6 @@ export async function POST(request: NextRequest) {
         };
 
         const newUser = await createUser(client, userData);
-        await createNewUserGameResult(client, userId, DEFAULT_RATING);
 
         return NextResponse.json(
             {

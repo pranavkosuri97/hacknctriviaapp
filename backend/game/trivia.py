@@ -25,8 +25,8 @@ class TriviaGame:
         self,
         player1: PlayerModel,
         player2: PlayerModel,
-        timer_length: int = 300,
-        num_questions: int = 10,
+        timer_length: int,
+        num_questions: int,
     ) -> None:
         self.match_type = ""
         self.players: Dict[str, Player] = {
@@ -69,7 +69,6 @@ class TriviaGame:
                 ],
             },
         )
-        print("dispatched game_started event")
         try:
             while self.is_running and not self.is_finished:
                 await asyncio.sleep(1)
@@ -200,6 +199,7 @@ class TriviaGame:
 
         p1_elo_before = self.players["player1"].get_elo()
         p2_elo_before = self.players["player2"].get_elo()
+        print("elos before: ", p1_elo_before, p2_elo_before)  # --- IGNORE ---
 
         winner = self._determine_winner()
         if winner == "player1":
@@ -219,25 +219,14 @@ class TriviaGame:
 
         p1_elo_after = int(round(p1_elo_before + K * (s1 - e1)))
         p2_elo_after = int(round(p2_elo_before + K * (s2 - e2)))
-
+        print(p1_elo_after, p2_elo_after)
         p1_delta = p1_elo_after - p1_elo_before
         p2_delta = p2_elo_after - p2_elo_before
-        for key, new_elo, delta in (("player1", p1_elo_after, p1_delta), ("player2", p2_elo_after, p2_delta)):
-            player = self.players[key]
-            if hasattr(player, "set_elo") and callable(getattr(player, "set_elo")):
-                try:
-                    player.set_elo(new_elo)
-                except Exception:
-                    pass
-            elif hasattr(player, "update_elo") and callable(getattr(player, "update_elo")):
-                try:
-                    player.update_elo(delta)
-                except Exception:
-                    pass
 
         player_elos_before = {"player1": p1_elo_before, "player2": p2_elo_before}
         player_elos_after = {"player1": p1_elo_after, "player2": p2_elo_after}
         player_elo_delta = {"player1": p1_delta, "player2": p2_delta}
+        print(player_elos_before, player_elos_after, player_elo_delta)  # --- IGNORE ---
 
 
         await self._dispatch_event(
@@ -248,7 +237,7 @@ class TriviaGame:
                 "winner": self._determine_winner(),
                 "final_scores": self.get_scores(),
                 "player_elos_before": player_elos_before,
-                "player_elos": player_elos_after,
+                "player_elos_after": player_elos_after,
                 "player_elo_delta": player_elo_delta,
             },
         )
@@ -345,11 +334,10 @@ class TriviaGame:
 
             rows = []
             seen_ids = set()
-
             for subj in guaranteed_subjects:
                 try:
                     res = get_random_questions([subj], 1)
-                except Exception:
+                except Exception as exc:
                     res = []
                 for r in (res or []):
                     rid = r.get("id")
@@ -390,7 +378,6 @@ class TriviaGame:
             return out if out else _fallback(n)
 
         except Exception as e:
-            print("Question retrieval error: ", e)
             return _fallback(num_questions)
     
     

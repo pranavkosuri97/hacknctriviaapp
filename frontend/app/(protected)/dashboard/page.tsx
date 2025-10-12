@@ -22,7 +22,7 @@ export default async function Dashboard() {
         redirect("/auth/create-profile");
     }
 
-    const userGames: GameResult[] = await getGameResultsByPlayerId(client, userId);
+    const userGames: GameResult[] = await getGameResultsByPlayerId(userId);
 
     return (
         <div className="flex flex-col w-full min-h-[60vh] max-h-screen overflow-hidden pb-12 items-center justify-center">

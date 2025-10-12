@@ -8,6 +8,7 @@ import type { User } from "../db/user/types";
 export interface GameState {
     players: Player[];
     currentQuestion: Question;
+    currentQuestionIndex: number;
     time_remaining: number;
     closed: boolean;
     isFinished: boolean;

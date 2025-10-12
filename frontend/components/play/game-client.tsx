@@ -27,6 +27,7 @@ export const sampleGameState: GameState = {
         choices: ["Berlin", "Madrid", "Paris", "Rome"],
         answer: "Paris",
     },
+    currentQuestionIndex: 0,
     closed: false,
     time_remaining: 100,
     isFinished: false,
