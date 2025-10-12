@@ -49,6 +49,7 @@ export function getNewGameState(previous: GameState, data: GameMessage): GameSta
                     answer: ""
                 },
                 closed: false,
+
             };
         }
         case "answer_received": {
@@ -56,6 +57,10 @@ export function getNewGameState(previous: GameState, data: GameMessage): GameSta
             return mapSnapshotToGameState(previous, snapshot);
         }
         case "timer_update": {
+            const { snapshot } = data.payload;
+            return mapSnapshotToGameState(previous, snapshot);
+        }
+        case "game_ended": {
             const { snapshot } = data.payload;
             return mapSnapshotToGameState(previous, snapshot);
         }
@@ -78,15 +83,21 @@ function mapSnapshotToGameState(previous: GameState, snapshot: GameSnapshot): Ga
         points: snapshot.scores[`player${idx + 1}`] ?? 0,
         answered: snapshot.current_answers.includes(p.id),
     }));
+
     return {
         ...previous,
-        currentQuestion: {
-            question: snapshot.current_question.prompt,
-            choices: snapshot.current_question.choices,
+        currentQuestion: snapshot.current_question ? {
+            question: snapshot.current_question.prompt ?? "",
+            choices: snapshot.current_question.choices ?? "",
+            answer: ""
+        } : {
+            question: "",
+            choices: [],
             answer: ""
         },
         players: mappedPlayers,
         closed: snapshot.can_advance,
         time_remaining: snapshot.time_remaining,
+        isFinished: snapshot.is_finished
     };
 }

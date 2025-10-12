@@ -9,6 +9,7 @@ import type { GameState } from "../../lib/game/types";
 import { useWebSocket } from "@/hooks/useWebsocket";
 import { GameAction, type GameMessage, type GameRequest } from "@/lib/game/game-ws-types";
 import { getNewGameState, getSelectedLetter } from "@/lib/game/utils";
+import Link from "next/link";
 
 const WEBSOCKET_URL = process.env.NEXT_PUBLIC_WEBSOCKET_URL;
 if (!WEBSOCKET_URL) throw new Error("Environment variable NEXT_PUBLIC_WEBSOCKET_URL is not set!");
@@ -64,34 +65,49 @@ export default function GameRoom({ gameState, userId, gameId }: GameRoomProps) {
     // biome-ignore lint/correctness/useExhaustiveDependencies: Just wrong
     useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => {
-            if (submitted) return;
+            if (submitted) {
+                if (e.key === "n" || e.key === "N") {
+                    if (state.closed) {
+                        handleAdvance();
+                    }
+                }
+                return;
+            }
 
             if (e.key >= "1" && e.key <= "9") {
                 const idx = parseInt(e.key, 10) - 1;
                 if (state.currentQuestion.choices && idx < state.currentQuestion.choices.length) {
                     setSelected(idx);
                 }
-            }
-
-            if (e.key === "Enter") {
+            } else if (e.key === "Enter") {
                 if (selected !== null) {
                     handleSubmit();
                 }
-            }
-
-            if (e.key === "N") {
-                if (state.closed) {
-                    handleAdvance();
-                }
-            }
-
-            if (e.key === "T") {
-                console.log("closed?", state.closed);
             }
         };
         window.addEventListener("keydown", onKeyDown);
         return () => window.removeEventListener("keydown", onKeyDown);
     }, [selected, submitted, state.currentQuestion.choices]);
+
+    if (state.isFinished) {
+        return (
+            <div className="game-result p-8 max-w-xl mx-auto bg-white rounded shadow flex flex-col items-center justify-center">
+                <h2 className="text-2xl font-bold mb-4">Game Over!</h2>
+                <div className="mb-4 w-full">
+                    <h3 className="text-lg font-semibold mb-2">Final Scores</h3>
+                    <ul className="space-y-2">
+                        {state.players.map((player) => (
+                            <li key={player.user.username} className="flex justify-between px-4 py-2 bg-gray-100 rounded">
+                                <span>{player.user.username}</span>
+                                <span className="font-mono">{player.points} pts</span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+                <Link href="/dashboard" className="mt-6 px-6 py-2 bg-blue-600 text-white rounded shadow hover:bg-blue-700">Back to Dashboard</Link>
+            </div>
+        );
+    }
 
     return (
         <div className="game-room p-6 max-w-4xl mx-auto bg-white rounded shadow flex flex-row gap-8">

@@ -10,6 +10,7 @@ export interface GameState {
     currentQuestion: Question;
     time_remaining: number;
     closed: boolean;
+    isFinished: boolean;
 }
 
 export interface Player {
