@@ -3,7 +3,7 @@
 // external
 
 // internal
-import type { GameMessage } from "./game-ws-types";
+import type { GameMessage, GameSnapshot } from "./game-ws-types";
 import type { GameState } from "./types";
 
 
@@ -35,7 +35,6 @@ export function getNewGameState(previous: GameState, data: GameMessage): GameSta
                     answer: ""
                 },
                 players: mappedPlayers,
-                answering: undefined,
                 closed: false,
                 time_remaining,
             };
@@ -49,38 +48,16 @@ export function getNewGameState(previous: GameState, data: GameMessage): GameSta
                     choices: question.choices,
                     answer: ""
                 },
-                answering: undefined,
                 closed: false,
             };
         }
         case "answer_ack": {
-            const { player_id, is_correct, points_earned, current_scores, can_advance } = data.payload;
-            // Update players array
-            const updatedPlayers = previous.players.map(player => {
-                if (player.user.user_id === player_id) {
-                    return {
-                        ...player,
-                        points: (current_scores.get(player_id) ?? player.points),
-                        answered: true,
-                    };
-                }
-
-                return {
-                    ...player,
-                    points: (current_scores.get(player.user.user_id) ?? player.points),
-                };
-            });
-            return {
-                ...previous,
-                players: updatedPlayers,
-                closed: can_advance,
-            };
+            const { snapshot } = data.payload;
+            return mapSnapshotToGameState(previous, snapshot);
         }
         case "timer_update": {
-            return {
-                ...previous,
-                time_remaining: data.payload.time_remaining
-            };
+            const { snapshot } = data.payload;
+            return mapSnapshotToGameState(previous, snapshot);
         }
         case "error": {
             return previous;
@@ -88,4 +65,27 @@ export function getNewGameState(previous: GameState, data: GameMessage): GameSta
         default:
             return previous;
     }
+}
+
+function mapSnapshotToGameState(previous: GameState, snapshot: GameSnapshot): GameState {
+    const mappedPlayers = snapshot.players.map((p, idx) => ({
+        user: {
+            user_id: p.id,
+            username: p.name,
+            rating: p.elo,
+        },
+        points: snapshot.scores[`player${idx + 1}`] ?? 0,
+        answered: false,
+    }));
+    return {
+        ...previous,
+        currentQuestion: {
+            question: snapshot.current_question.prompt,
+            choices: snapshot.current_question.choices,
+            answer: ""
+        },
+        players: mappedPlayers,
+        closed: snapshot.can_advance,
+        time_remaining: snapshot.time_remaining,
+    };
 }

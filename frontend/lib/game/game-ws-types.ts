@@ -56,6 +56,7 @@ interface QuestionSnapshot {
     question_number: number;
     total_questions: number;
     time_remaining: number;
+    snapshot: GameSnapshot;
 }
 
 interface GameQuestion {
@@ -66,12 +67,14 @@ interface GameQuestion {
 interface TimerMessage {
     type: GameResponse.TIMER;
     payload: TimerSnapshot;
+    snapshot: GameSnapshot;
 }
 
 interface TimerSnapshot {
     game_id: string;
     time_remaining: number;
     question_number: number;
+    snapshot: GameSnapshot;
 }
 
 export enum GameResponse {
@@ -86,11 +89,12 @@ export interface AnswerSnapshot {
     game_id: string;
     player_id: string;
     answer: string;
-    is_correct: boolean,
-    points_earned: number,
-    current_scores: Map<string, number>,
-    question_number: number,
-    can_advance: boolean,
+    is_correct: boolean;
+    points_earned: number;
+    current_scores: { [key: string]: number }
+    question_number: number;
+    can_advance: boolean;
+    snapshot: GameSnapshot;
 }
 
 export interface GameSnapshot {
@@ -101,7 +105,7 @@ export interface GameSnapshot {
     can_advance: boolean;
     total_question: number;
     time_remaining: number;
-    scores: Map<string, number>;
+    scores: { [key: string]: number }
     current_question: GameQuestion;
     players: GamePlayer[];
 }
