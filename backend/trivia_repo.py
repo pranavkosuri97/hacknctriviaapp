@@ -50,7 +50,20 @@ class TriviaRepo:
         }
         print("elo payload", payload["p1_elo"])
         await self._execute(self.sb.table("games").upsert(payload, on_conflict="id"))
-    
+        # update player ratings in "users" table
+        await asyncio.gather(
+            self._execute(
+                self.sb.table("users")
+                .update({"rating": p1_elo})
+                .eq("user_id", player1)
+            ),
+            self._execute(
+                self.sb.table("users")
+                .update({"rating": p2_elo})
+                .eq("user_id", player2)
+            ),
+        )
+
     async def get_player_history(self, player_id: str) -> list[Dict[str, Any]]:
         # query all games where player_id is either player_1 or player_2
         query = self.sb.table("games").select("*").or_(f"player_1.eq.{player_id},player_2.eq.{player_id}")

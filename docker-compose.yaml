@@ -1,0 +1,15 @@
+version: "3"
+services:
+  triviate-api:
+    build: ./backend
+    image: ansharyan03/triviate-api:latest
+    ports:
+      - 8000:8000
+    restart: unless-stopped
+  
+  web:
+    build: ./frontend
+    image: ansharyan03/triviate:latest
+    ports:
+      - 80:80
+    restart: unless-stopped

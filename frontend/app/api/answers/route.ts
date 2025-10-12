@@ -5,9 +5,6 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 // internal
-import { getCurrentUserClient } from "@/lib/supabase/server";
-import { createUser, getUserById, usernameExists } from "@/lib/db/user/crud";
-import { DEFAULT_RATING, type User } from "@/lib/db/user/types";
 
 function resolveBackendUrl(): string {
     const baseUrl =
