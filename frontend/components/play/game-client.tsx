@@ -14,7 +14,7 @@ export const sampleGameState: GameState = {
     currentQuestion: {
         question: "",
         choices: [],
-        answer: "",
+        answer: -1,
     },
     currentQuestionIndex: 0,
     closed: false,

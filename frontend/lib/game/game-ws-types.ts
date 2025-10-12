@@ -61,7 +61,8 @@ interface QuestionSnapshot {
 
 interface GameQuestion {
     prompt: string;
-    choices: string[]
+    choices: string[];
+    answer: number;
 }
 
 interface TimerMessage {
@@ -111,7 +112,7 @@ export interface GameSnapshot {
     game_id: string;
     is_running: boolean;
     is_finished: boolean;
-    current_question_inde: number;
+    current_question_index: number;
     can_advance: boolean;
     total_question: number;
     time_remaining: number;

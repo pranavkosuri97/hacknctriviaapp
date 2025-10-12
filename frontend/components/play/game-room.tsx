@@ -19,11 +19,11 @@ interface GameRoomProps {
     userId: string;
     gameId: string;
 }
-
 export default function GameRoom({ gameState, userId, gameId }: GameRoomProps) {
     const [state, setState] = useState<GameState>(gameState);
     const [selected, setSelected] = useState<number | null>(null);
     const [submitted, setSubmitted] = useState(false);
+
     const { send } = useWebSocket<GameRequest, GameMessage>(
         `${WEBSOCKET_URL}/ws/games/${gameId}/${userId}`,
         (data) => {
@@ -119,9 +119,19 @@ export default function GameRoom({ gameState, userId, gameId }: GameRoomProps) {
                 <div className="mb-6">
                     <div className="grid grid-cols-1 gap-2">
                         {state.currentQuestion.choices?.map((choice, idx) => {
-                            let buttonColor = (selected === idx) ? "bg-blue-100 border-blue-500" : "bg-gray-50";
-                            if (state.closed) {
-                                buttonColor = (choice === state.currentQuestion.answer) ? "bg-green-600" : "bg-gray-300";
+                            let buttonColor = "bg-gray-50 border-gray-300";
+                            const answerIndex = state.currentQuestion.answer
+
+                            if ((submitted || state.closed) && idx === answerIndex) {
+                                buttonColor = "bg-green-100 border-green-600";
+                            }
+
+                            if ((submitted || state.closed) && selected === idx && idx !== answerIndex) {
+                                buttonColor = "bg-red-100 border-red-600";
+                            }
+
+                            if (!submitted && !state.closed && selected === idx) {
+                                buttonColor = "bg-blue-100 border-blue-500";
                             }
                             return (
                                 <button

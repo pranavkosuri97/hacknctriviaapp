@@ -23,5 +23,5 @@ export interface Player {
 export interface Question {
     question: string;
     choices: string[];
-    answer: string;
+    answer: number;
 }
