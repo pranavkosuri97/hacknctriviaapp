@@ -82,7 +82,17 @@ export enum GameResponse {
     ERROR = "error",
     QUESTION_ADVANCED = "question_advanced",
     ANSWER = "answer_received",
-    TIMER = "timer_update"
+    TIMER = "timer_update",
+    ENDED = "game_ended",
+}
+
+export interface EndedMessage {
+    type: GameResponse.ENDED;
+    payload: EndedSnapshot;
+}
+
+export interface EndedSnapshot {
+    snapshot: GameSnapshot;
 }
 
 export interface AnswerSnapshot {
@@ -111,4 +121,4 @@ export interface GameSnapshot {
     players: GamePlayer[];
 }
 
-export type GameMessage = StartedMessage | QuestionAdvancedMessage | AnswerMessage | TimerMessage | ErrorMessage;
+export type GameMessage = StartedMessage | EndedMessage | QuestionAdvancedMessage | AnswerMessage | TimerMessage | ErrorMessage;

@@ -29,6 +29,7 @@ export const sampleGameState: GameState = {
     },
     closed: false,
     time_remaining: 100,
+    isFinished: false,
 };
 
 export interface GameRoomClientProp {
