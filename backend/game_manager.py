@@ -53,9 +53,6 @@ class GameManager:
         await game.stop_game()
         await self._finalize_game(game_id)
 
-    # ------------------------------------------------------------------
-    # Player actions
-    # ------------------------------------------------------------------
     async def submit_answer(self, game_id: str, player_id: str, answer) -> dict:
         game = self.games.get(game_id)
         if not game:
@@ -64,7 +61,6 @@ class GameManager:
         return await game.receive_answer(player_id, answer)
 
     async def advance_question(self, game_id: str) -> None:
-        """Force advance to next question (if needed)."""
         game = self.games.get(game_id)
         if not game:
             return

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from pydantic import BaseModel
 from typing import Any, Awaitable, Callable, Dict, Optional, Set
 from uuid import uuid4
 
@@ -10,6 +11,12 @@ from game.question import Question
 
 EventCallback = Callable[[str, Dict[str, Any]], Awaitable[None]]
 
+class GameResultState(BaseModel):
+    game_id: str
+    reason: str
+    winner: str
+    final_scores: Dict[str, int]
+    player_elos: Dict[str, int]
 
 class TriviaGame:
     def __init__(
@@ -93,15 +100,7 @@ class TriviaGame:
             )
             raise
 
-    async def stop_game(self) -> None:
-        """Stop the game loop without declaring a winner."""
-        self.is_running = False
-        await self._end_game(reason="stopped")
-
-    # ------------------------------------------------------------------
-    # Player interaction
-    # ------------------------------------------------------------------
-    async def receive_answer(self, player_id: str, answer) -> Dict[str, Any]:
+    async def receive_answer(self, player_id: str, answer: str) -> Dict[str, Any]:
         """Process an answer from a player and dispatch relevant events."""
         if self.is_finished or not self.is_running:
             return {"status": "finished"}
@@ -110,35 +109,26 @@ class TriviaGame:
             await self._end_game(reason="timer_expired")
             return {"status": "timeout"}
 
-        player_key = self._resolve_player_key(player_id)
-        if not player_key:
-            return {"status": "invalid_player"}
-
-        if player_key in self.current_answers:
-            return {"status": "already_answered"}
-
         question = self.questions[self.current_question_index]
         is_correct = question.answer_correct(answer)
         points_earned = POINTS_CORRECT if is_correct else 0
 
-        self.players[player_key].update_score(points_earned)
-        self.current_answers.add(player_key)
-
+        if len(self.current_answers) < 2:
+            self.players[player_id].update_score(points_earned)
+            self.current_answers.add(player_id)
+        else:
+            return {"status": "all_answered"}
+        
         payload = {
             "game_id": str(self.id),
-            "player": player_key,
             "player_id": player_id,
             "answer": answer,
             "is_correct": is_correct,
             "points_earned": points_earned,
             "current_scores": self.get_scores(),
             "question_number": self.get_question_number(),
-            "remaining_players": len(self.players) - len(self.current_answers),
         }
         await self._dispatch_event("answer_received", payload)
-
-        if len(self.current_answers) == len(self.players):
-            await self._advance_to_next_question()
 
         return {"status": "ok", "is_correct": is_correct}
 
@@ -148,9 +138,6 @@ class TriviaGame:
             return
         await self._advance_to_next_question()
 
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
     def get_question_number(self) -> int:
         return self.current_question_index + 1
 
@@ -168,9 +155,6 @@ class TriviaGame:
     def set_event_callback(self, callback: EventCallback | None) -> None:
         self.event_callback = callback
 
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
     async def _advance_to_next_question(self) -> None:
         """Advance to the next question or finish the game."""
         self.current_answers.clear()
@@ -207,6 +191,7 @@ class TriviaGame:
                 "reason": reason,
                 "winner": self._determine_winner(),
                 "final_scores": self.get_scores(),
+                "player_elos": {key: player.get_elo() for key, player in self.players.items()},
             },
         )
 
@@ -228,12 +213,6 @@ class TriviaGame:
             "choices": question.get_choices(),
         }
 
-    def _resolve_player_key(self, player_id: str) -> Optional[str]:
-        for key, player in self.players.items():
-            if player.get_id() == player_id:
-                return key
-        return None
-
     def _determine_winner(self) -> str:
         score1 = self.players["player1"].get_score()
         score2 = self.players["player2"].get_score()
@@ -244,9 +223,6 @@ class TriviaGame:
             return "player2"
         return "draw"
 
-    # ------------------------------------------------------------------
-    # Static utilities
-    # ------------------------------------------------------------------
     @staticmethod
     def load_questions(num_questions: int = 1) -> list[Question]:
         """Load questions (temporary stub until database integration)."""
@@ -266,5 +242,3 @@ class TriviaGame:
         for idx in range(num_questions):
             questions.append(sample_questions[idx % len(sample_questions)])
         return questions
-    
-    
