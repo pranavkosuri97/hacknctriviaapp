@@ -70,7 +70,7 @@ class TriviaGame:
                 ],
             },
         )
-
+        print("dispatched game_started event")
         try:
             while self.is_running and not self.is_finished:
                 await asyncio.sleep(1)

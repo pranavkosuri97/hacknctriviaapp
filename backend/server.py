@@ -109,7 +109,7 @@ async def game_websocket(websocket: WebSocket, game_id: str, player_id: str) -> 
     await connection_manager.connect(game_id, websocket, ConnectionType.GAME)
 
     try:
-        await websocket.send_json({"type": "connected", "game_id": game_id})
+        await websocket.send_json({"type": "connected", "game_id": game_id, "snapshot": game_manager.get_game(game_id).get_snapshot()})
 
         while True:
             message = await websocket.receive_json()
