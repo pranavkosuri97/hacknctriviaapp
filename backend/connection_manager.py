@@ -1,36 +1,81 @@
-"""
-Handles websocket connections for both game and for lobby.
+"""WebSocket connection manager for lobby and in-game channels."""
 
-Responsible for connect, disconnect, and broadcasting messages from server to clients.
-"""
-from fastapi import WebSocket
+from __future__ import annotations
+
+import json
 from enum import Enum
+from typing import Dict, List, Optional
+
+from fastapi import WebSocket
+
 
 class ConnectionType(Enum):
     LOBBY = "lobby"
     GAME = "game"
 
+
 class ConnectionManager:
-    def __init__(self):
-        self.lobby_connections = {}
-        self.game_connections = {}
+    def __init__(self) -> None:
+        self.lobby_connections: Dict[str, WebSocket] = {}
+        self.game_connections: Dict[str, List[WebSocket]] = {}
 
-    async def connect(self, id: str, websocket: WebSocket, type: ConnectionType = ConnectionType.LOBBY):
+    async def connect(
+        self,
+        id: str,
+        websocket: WebSocket,
+        type: ConnectionType = ConnectionType.LOBBY,
+    ) -> None:
         await websocket.accept()
+
         if type == ConnectionType.LOBBY:
-            if id not in self.lobby_connections:
-                self.lobby_connections[id] = websocket
-        elif type == ConnectionType.GAME:
-            if id not in self.game_connections:
-                self.game_connections[id] = websocket
+            self.lobby_connections[id] = websocket
+        else:
+            self.game_connections.setdefault(id, []).append(websocket)
 
-    async def disconnect(self, id: str):
-        del self.lobby_connections[id]
+    async def disconnect(
+        self,
+        id: str,
+        websocket: Optional[WebSocket] = None,
+        type: ConnectionType = ConnectionType.LOBBY,
+    ) -> None:
+        if type == ConnectionType.LOBBY:
+            self.lobby_connections.pop(id, None)
+            return
 
-    async def broadcast_game(self, game_id: str, message: str):
-        if game_id in self.game_connections:
-            await self.game_connections[game_id].send_text(message)
+        if id not in self.game_connections:
+            return
 
-    async def broadcast_lobby(self, user_id: str, message: str):
-        if user_id in self.lobby_connections:
-            await self.lobby_connections[user_id].send_text(message)
+        sockets = self.game_connections[id]
+        if websocket is not None and websocket in sockets:
+            sockets.remove(websocket)
+
+        if not sockets:
+            self.game_connections.pop(id, None)
+
+    async def broadcast_game(self, game_id: str, message) -> None:
+        """Broadcast a JSON-serialisable payload to all game sockets."""
+        if game_id not in self.game_connections:
+            return
+
+        payload = message if isinstance(message, str) else json.dumps(message)
+        dead_sockets: List[WebSocket] = []
+
+        for socket in self.game_connections[game_id]:
+            try:
+                await socket.send_text(payload)
+            except Exception:
+                dead_sockets.append(socket)
+
+        for socket in dead_sockets:
+            await self.disconnect(game_id, socket, ConnectionType.GAME)
+
+    async def broadcast_lobby(self, user_id: str, message) -> None:
+        if user_id not in self.lobby_connections:
+            return
+
+        payload = message if isinstance(message, str) else json.dumps(message)
+        socket = self.lobby_connections[user_id]
+        try:
+            await socket.send_text(payload)
+        except Exception:
+            await self.disconnect(user_id, socket, ConnectionType.LOBBY)

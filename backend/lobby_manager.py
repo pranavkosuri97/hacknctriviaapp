@@ -1,43 +1,76 @@
-"""
-Lobby Manager does the following:
-- Allows new players to join the lobby/queue
-- Pairs based on their ELO and what mode they want.
-- When the game is ready, it creates a new Game instance
-    - Therefore uses ConnectionManager:
-        - to broadcast players that the game is starting
-        - to prevent players from joining multiple games/lobbies
+"""Simple lobby matchmaking manager."""
 
-For now, we have a very simple queuing system.
+from __future__ import annotations
 
-"""
+from collections import deque
+from typing import Deque, Dict
+
 from fastapi import WebSocket
-from backend.game_manager import GameManager
-from backend.trivia import TriviaGame
-from backend.connection_manager import ConnectionManager
 
-import queue
+from connection_manager import ConnectionManager
+from game.player import PlayerModel
+from game_manager import GameManager
+
+
 class LobbyManager:
-    def __init__(self):
-        self.lobby = queue.Queue()
-        from backend.server import connection_manager
+    """Handles a basic FIFO lobby that pairs players into games."""
+
+    def __init__(self, connection_manager: ConnectionManager, game_manager: GameManager) -> None:
         self.connection_manager = connection_manager
-        from backend.server import game_manager
         self.game_manager = game_manager
-        self.active_games = {}  # game_id -> TriviaGame instance
-        self.game_counter = 0  # Simple counter to assign game IDs
-    
-    async def join_lobby(self, user_id: str, websocket: WebSocket, elo: int):
-        if user_id in self.lobby.queue:
-            await self.connection_manager.broadcast_lobby(user_id, "You cannot join the lobby multiple times.")
+        self._waiting_queue: Deque[PlayerModel] = deque()
+        self._active_waiters: Dict[str, PlayerModel] = {}
+
+    async def enqueue_player(self, player: PlayerModel) -> None:
+        """Add a player to the matchmaking queue and attempt to pair."""
+        if player.id in self._active_waiters:
+            await self.connection_manager.broadcast_lobby(
+                player.id,
+                {
+                    "type": "error",
+                    "message": "Player already waiting in lobby",
+                },
+            )
             return
-        self.lobby.put((user_id, websocket, elo))
-    
-    async def pair(self):
-        if self.lobby.qsize() >= 2:
-            player1 = self.lobby.get()
-            player2 = self.lobby.get()
+
+        self._waiting_queue.append(player)
+        self._active_waiters[player.id] = player
+        await self._attempt_pair()
+
+    async def remove_player(self, player_id: str) -> None:
+        """Remove a player from the queue if present."""
+        if player_id not in self._active_waiters:
+            return
+
+        player = self._active_waiters.pop(player_id)
+        try:
+            self._waiting_queue.remove(player)
+        except ValueError:
+            pass
+
+    async def _attempt_pair(self) -> None:
+        while len(self._waiting_queue) >= 2:
+            player1 = self._waiting_queue.popleft()
+            player2 = self._waiting_queue.popleft()
+
+            self._active_waiters.pop(player1.id, None)
+            self._active_waiters.pop(player2.id, None)
+
             game_id = await self.game_manager.create_game(player1, player2)
-            
-            # Notify players
-            await self.connection_manager.broadcast_lobby(player1[0], f"Game starting! ID: {game_id}")
-            await self.connection_manager.broadcast_lobby(player2[0], f"Game starting! ID: {game_id}")
+
+            await self.connection_manager.broadcast_lobby(
+                player1.id,
+                {
+                    "type": "game_found",
+                    "game_id": game_id,
+                    "opponent": player2.model_dump(exclude={"elo"}),
+                },
+            )
+            await self.connection_manager.broadcast_lobby(
+                player2.id,
+                {
+                    "type": "game_found",
+                    "game_id": game_id,
+                    "opponent": player1.model_dump(exclude={"elo"}),
+                },
+            )

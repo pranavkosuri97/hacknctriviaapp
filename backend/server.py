@@ -1,59 +1,124 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from backend.connection_manager import ConnectionManager
-from backend.connection_manager import ConnectionType
-from backend.game_manager import GameManager
-from backend.lobby_manager import LobbyManager
+"""FastAPI application exposing lobby and game websocket endpoints."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from pydantic import BaseModel
+
+from connection_manager import ConnectionManager, ConnectionType
+from game.player import PlayerModel
+from game_manager import GameManager
+from lobby_manager import LobbyManager
+
+
+class CreateGameRequest(BaseModel):
+    player1: PlayerModel
+    player2: PlayerModel
+    timer_length: int = 300
+    num_questions: int = 10
+
+
 app = FastAPI()
 
 connection_manager = ConnectionManager()
-game_manager = GameManager()
-room_manager = LobbyManager()
-@app.websocket("/lobby/{user_id}")
-async def websocket_endpoint(websocket: WebSocket, user_id: str):
-     # Connect (accept and store)
-    await connection_manager.connect(user_id, websocket)
+game_manager = GameManager(connection_manager)
+lobby_manager = LobbyManager(connection_manager, game_manager)
 
+
+@app.get("/health")
+async def health_check() -> dict[str, str]:
+    return {"status": "ok"}
+
+
+@app.post("/games")
+async def create_game(payload: CreateGameRequest) -> dict[str, Any]:
+    game_id = await game_manager.create_game(
+        payload.player1,
+        payload.player2,
+        timer_length=payload.timer_length,
+        num_questions=payload.num_questions,
+    )
+    return {"game_id": game_id}
+
+@app.websocket("/ws/hello")
+async def hello_websocket(websocket: WebSocket) -> None:
+    await websocket.accept()
+    # Send a greeting message
+    await websocket.send_json({"message": "Hello, WebSocket!"})
+    await websocket.close()
+
+
+@app.websocket("/ws/lobby/<str:player_id>")
+async def lobby_websocket(websocket: WebSocket, player_id: str) -> None:
+    await connection_manager.connect(player_id, websocket, ConnectionType.LOBBY)
+    print("connected")
     try:
         while True:
-            # THIS is where you receive messages from client!
-            data = await websocket.receive_json()
-            # ↑ Blocks until client sends something
-            
-            # Handle different message types
-            if data["type"] == "submit_answer":
-                # User selected answer choice
-                game = room_manager.get_game(game_id)
-                await game.submit_answer(player_id, data["answer"])
-            
-            elif data["type"] == "chat_message":
-                # Handle chat
-                pass
-    
-    except WebSocketDisconnect:
-        # Client disconnected - clean up
-        await connection_manager.disconnect(user_id)
+            message = await websocket.receive_json()
+            message_type = message.get("type")
 
-@app.websocket("/ws/game/{game_id}")
-async def game_websocket(websocket: WebSocket, game_id: str, player_id: str):
-    # Connect (accept and store)
-    await connection_manager.connect(game_id, websocket, type=ConnectionType.GAME)
-    
+            if message_type == "join":
+                player_data = message.get("player")
+                if not player_data:
+                    await websocket.send_json({"type": "error", "message": "missing player payload"})
+                    continue
+
+                player = PlayerModel(**player_data)
+                if player.id != player_id:
+                    await websocket.send_json({"type": "error", "message": "player id mismatch"})
+                    continue
+
+                await lobby_manager.enqueue_player(player)
+
+            elif message_type == "leave":
+                await lobby_manager.remove_player(player_id)
+                break
+
+            else:
+                await websocket.send_json({"type": "error", "message": "unknown lobby event"})
+
+    except WebSocketDisconnect:
+        pass
+    finally:
+        await lobby_manager.remove_player(player_id)
+        await connection_manager.disconnect(player_id, websocket, ConnectionType.LOBBY)
+        await websocket.close()
+
+@app.websocket("/ws/games/{game_id}/{player_id}")
+async def game_websocket(websocket: WebSocket, game_id: str, player_id: str) -> None:
+    if not game_manager.get_game(game_id):
+        raise HTTPException(status_code=404, detail="Game not found")
+
+    await connection_manager.connect(game_id, websocket, ConnectionType.GAME)
+
     try:
-        while True:
-            # THIS is where you receive messages from client!
-            data = await websocket.receive_json()
-            # ↑ Blocks until client sends something
-            
-            # Handle different message types
-            if data["type"] == "submit_answer":
-                # User selected answer choice
-                await game_manager.get_game(game_id)
+        await websocket.send_json({"type": "connected", "game_id": game_id})
 
-            
-            elif data["type"] == "chat_message":
-                # Handle chat
-                pass
-    
+        while True:
+            message = await websocket.receive_json()
+            message_type = message.get("type")
+
+            if message_type == "submit_answer":
+                answer = message.get("answer")
+                if answer is None:
+                    await websocket.send_json({"type": "error", "message": "missing answer"})
+                    continue
+
+                result = await game_manager.submit_answer(game_id, player_id, answer)
+                await websocket.send_json({"type": "answer_ack", "payload": result})
+
+            elif message_type == "advance_question":
+                await game_manager.advance_question(game_id)
+
+            elif message_type == "leave":
+                break
+
+            else:
+                await websocket.send_json({"type": "error", "message": "unknown game event"})
+
     except WebSocketDisconnect:
-        # Client disconnected - clean up
-        await connection_manager.disconnect(game_id)
+        pass
+    finally:
+        await connection_manager.disconnect(game_id, websocket, ConnectionType.GAME)
