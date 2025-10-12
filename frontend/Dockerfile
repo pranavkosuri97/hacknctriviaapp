@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 node:current-alpine
+FROM node:current-alpine
 
 WORKDIR /app
 # COPY ./src/** ./src/
