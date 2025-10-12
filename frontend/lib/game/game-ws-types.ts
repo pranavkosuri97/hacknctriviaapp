@@ -15,6 +15,26 @@ export enum GameAction {
     LEAVE = "leave",
 }
 
+export interface StartedMessage {
+    type: GameResponse.STARTED;
+    payload: StartedSnapshot;
+}
+
+interface StartedSnapshot {
+    game_id: string;
+    question: GameQuestion;
+    question_number: number;
+    total_questions: number;
+    time_remaining: number;
+    players: GamePlayer[];
+}
+
+interface GamePlayer {
+    id: string;
+    name: string;
+    elo: number;
+}
+
 export interface AnswerMessage {
     type: GameResponse.ANSWER;
     payload: AnswerSnapshot;
@@ -55,6 +75,7 @@ interface TimerSnapshot {
 }
 
 export enum GameResponse {
+    STARTED = "game_started",
     ERROR = "error",
     QUESTION_ADVANCED = "question_advanced",
     ANSWER = "answer_ack",
@@ -72,4 +93,17 @@ export interface AnswerSnapshot {
     can_advance: boolean,
 }
 
-export type GameMessage = QuestionAdvancedMessage | AnswerMessage | TimerMessage | ErrorMessage;
+export interface GameSnapshot {
+    game_id: string;
+    is_running: boolean;
+    is_finished: boolean;
+    current_question_inde: number;
+    can_advance: boolean;
+    total_question: number;
+    time_remaining: number;
+    scores: Map<string, number>;
+    current_question: GameQuestion;
+    players: GamePlayer[];
+}
+
+export type GameMessage = StartedMessage | QuestionAdvancedMessage | AnswerMessage | TimerMessage | ErrorMessage;
