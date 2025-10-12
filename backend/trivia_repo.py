@@ -154,10 +154,10 @@ class TriviaRepo:
             )
 
         for u in updates:
-            await self._run(
+            (await self._run(
                 self.sb.table("game_participants").update,
                 {"final_score": u["final_score"], "ending_elo": u["ending_elo"]},
-            ).eq("game_id", game_id).eq("player_id", u["player_id"])
+            )).eq("game_id", game_id).eq("player_id", u["player_id"])
 
         res = await self._run(
             self.sb.table("game_participants")
@@ -172,9 +172,9 @@ class TriviaRepo:
             old_elo = row.get("starting_elo", None)
             new_elo = row.get("ending_elo", None)
             if new_elo is not None:
-                await self._run(
+                (await self._run(
                     self.sb.table("players").update, {"elo": new_elo}
-                ).eq("id", player_id)
+                )).eq("id", player_id)
             if old_elo is not None and new_elo is not None:
                 await self._run(
                     self.sb.table("elo_history").insert,
