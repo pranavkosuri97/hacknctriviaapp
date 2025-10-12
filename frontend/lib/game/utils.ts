@@ -51,7 +51,7 @@ export function getNewGameState(previous: GameState, data: GameMessage): GameSta
                 closed: false,
             };
         }
-        case "answer_ack": {
+        case "answer_received": {
             const { snapshot } = data.payload;
             return mapSnapshotToGameState(previous, snapshot);
         }
@@ -75,7 +75,7 @@ function mapSnapshotToGameState(previous: GameState, snapshot: GameSnapshot): Ga
             rating: p.elo,
         },
         points: snapshot.scores[`player${idx + 1}`] ?? 0,
-        answered: false,
+        answered: snapshot.current_answers.includes(p.id),
     }));
     return {
         ...previous,

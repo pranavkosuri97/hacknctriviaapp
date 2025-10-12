@@ -20,7 +20,7 @@ interface GameRoomProps {
 }
 
 export default function GameRoom({ gameState, userId, gameId }: GameRoomProps) {
-    const [state, setState] = useState(gameState);
+    const [state, setState] = useState<GameState>(gameState);
     const [selected, setSelected] = useState<number | null>(null);
     const [submitted, setSubmitted] = useState(false);
     const { send } = useWebSocket<GameRequest, GameMessage>(
@@ -36,7 +36,7 @@ export default function GameRoom({ gameState, userId, gameId }: GameRoomProps) {
     };
 
     const handleSubmit = () => {
-        if (selected !== null && !submitted && !closed) {
+        if (selected !== null && !submitted && !gameState.closed) {
             const answer = getSelectedLetter(selected);
             send({ type: GameAction.SUBMIT, answer });
             setSubmitted(true);
@@ -66,7 +66,7 @@ export default function GameRoom({ gameState, userId, gameId }: GameRoomProps) {
             }
 
             if (e.key === "N") {
-                if (closed) {
+                if (gameState.closed) {
                     handleAdvance();
                 }
             }
@@ -105,7 +105,7 @@ export default function GameRoom({ gameState, userId, gameId }: GameRoomProps) {
                             type="button"
                             className="px-6 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
                             onClick={handleSubmit}
-                            disabled={selected === null || submitted || closed}
+                            disabled={selected === null || submitted || gameState.closed}
                         >
                             Submit Answer
                         </button>
@@ -114,7 +114,7 @@ export default function GameRoom({ gameState, userId, gameId }: GameRoomProps) {
                             type="button"
                             className="px-6 py-2 bg-violet-600 text-white rounded disabled:opacity-50"
                             onClick={handleAdvance}
-                            disabled={!closed}
+                            disabled={!gameState.closed}
                         >
                             Next Question
                         </button>

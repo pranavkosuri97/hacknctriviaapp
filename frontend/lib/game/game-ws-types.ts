@@ -81,7 +81,7 @@ export enum GameResponse {
     STARTED = "game_started",
     ERROR = "error",
     QUESTION_ADVANCED = "question_advanced",
-    ANSWER = "answer_ack",
+    ANSWER = "answer_received",
     TIMER = "timer_update"
 }
 
@@ -107,6 +107,7 @@ export interface GameSnapshot {
     time_remaining: number;
     scores: { [key: string]: number }
     current_question: GameQuestion;
+    current_answers: string[];
     players: GamePlayer[];
 }
 
