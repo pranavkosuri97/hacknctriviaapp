@@ -188,6 +188,48 @@ class TriviaGame:
         self.current_answers.clear()
         self.timer = max(0, self.timer)
 
+        p1_elo_before = self.players["player1"].get_elo()
+        p2_elo_before = self.players["player2"].get_elo()
+
+        winner = self._determine_winner()
+        if winner == "player1":
+            s1, s2 = 1.0, 0.0
+        elif winner == "player2":
+            s1, s2 = 0.0, 1.0
+        else:
+            s1, s2 = 0.5, 0.5
+
+        def _expected(a: float, b: float) -> float:
+            return 1.0 / (1.0 + 10 ** ((b - a) / 400.0))
+
+        e1 = _expected(p1_elo_before, p2_elo_before)
+        e2 = _expected(p2_elo_before, p1_elo_before)
+
+        K = 32
+
+        p1_elo_after = int(round(p1_elo_before + K * (s1 - e1)))
+        p2_elo_after = int(round(p2_elo_before + K * (s2 - e2)))
+
+        p1_delta = p1_elo_after - p1_elo_before
+        p2_delta = p2_elo_after - p2_elo_before
+        for key, new_elo, delta in (("player1", p1_elo_after, p1_delta), ("player2", p2_elo_after, p2_delta)):
+            player = self.players[key]
+            if hasattr(player, "set_elo") and callable(getattr(player, "set_elo")):
+                try:
+                    player.set_elo(new_elo)
+                except Exception:
+                    pass
+            elif hasattr(player, "update_elo") and callable(getattr(player, "update_elo")):
+                try:
+                    player.update_elo(delta)
+                except Exception:
+                    pass
+
+        player_elos_before = {"player1": p1_elo_before, "player2": p2_elo_before}
+        player_elos_after = {"player1": p1_elo_after, "player2": p2_elo_after}
+        player_elo_delta = {"player1": p1_delta, "player2": p2_delta}
+
+
         await self._dispatch_event(
             "game_ended",
             {
@@ -195,7 +237,9 @@ class TriviaGame:
                 "reason": reason,
                 "winner": self._determine_winner(),
                 "final_scores": self.get_scores(),
-                "player_elos": {key: player.get_elo() for key, player in self.players.items()},
+                "player_elos_before": player_elos_before,
+                "player_elos": player_elos_after,
+                "player_elo_delta": player_elo_delta,
             },
         )
 
