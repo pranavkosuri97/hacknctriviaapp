@@ -4,10 +4,12 @@ import asyncio
 from pydantic import BaseModel
 from typing import Any, Awaitable, Callable, Dict, Optional, Set
 from uuid import uuid4
+import random
 
 from game.constants import POINTS_CORRECT, GameActions
 from game.player import Player, PlayerModel
 from game.question import Question
+from questions import get_random_questions
 
 EventCallback = Callable[[str, Dict[str, Any]], Awaitable[None]]
 
@@ -280,47 +282,78 @@ class TriviaGame:
 
     @staticmethod
     def load_questions(num_questions: int = 1) -> list[Question]:
-        """Load questions (temporary stub until database integration)."""
-        sample_questions = [
-            Question("What is 2 + 2?", ["1", "2", "4", "5"], "C"),
-            Question("Capital of France?", ["London", "Paris", "Berlin", "Rome"], "B"),
-            Question("Color mixing red + blue?", ["Green", "Purple", "Orange", "Yellow"], "B"),
-            Question("How many days in a leap year?", ["363", "364", "365", "366"], "D"),
-            Question("Largest planet?", ["Earth", "Jupiter", "Mars", "Venus"], "B"),
-        ]
+        """Fetch questions from DB with fully random subjects but ensure >=1 per subject when possible.
+        Falls back to built-in samples if DB fetch fails or rows are malformed.
+        """
+        SUBJECTS = ["history", "science", "arts", "geography", "pop culture", "sports"]
+        LETTERS = ["A", "B", "C", "D"]
 
-        if num_questions <= len(sample_questions):
-            return sample_questions[:num_questions]
+        def _fallback(n: int) -> list[Question]:
+            sample_questions = [
+                Question("What is 2 + 2?", ["1", "2", "4", "5"], "C"),
+                Question("Capital of France?", ["London", "Paris", "Berlin", "Rome"], "B"),
+                Question("Color mixing red + blue?", ["Green", "Purple", "Orange", "Yellow"], "B"),
+                Question("How many days in a leap year?", ["363", "364", "365", "366"], "D"),
+                Question("Largest planet?", ["Earth", "Jupiter", "Mars", "Venus"], "B"),
+            ]
+            if n <= len(sample_questions):
+                return sample_questions[:n]
+            return [sample_questions[i % len(sample_questions)] for i in range(n)]
+        try:
+            n = max(0, int(num_questions))
+            if n == 0:
+                return []
 
-        # Loop through samples if more questions requested than provided
-        questions: list[Question] = []
-        for idx in range(num_questions):
-            questions.append(sample_questions[idx % len(sample_questions)])
-        return questions
-    
-    def get_snapshot(self) -> Dict[str, Any]:
-        """Get a snapshot of the current game state."""
-        can_advance = len(self.current_answers) == 2 or (len(self.current_answers) == 1 and ((self.players["player1"].get_score() + self.players["player2"].get_score()) / POINTS_CORRECT) == (self.current_question_index + 1))
-        return {
-            "game_id": str(self.id),
-            "is_running": self.is_running,
-            "is_finished": self.is_finished,
-            "current_question_index": self.current_question_index,
-            "can_advance": can_advance,
-            "total_questions": self.get_number_questions(),
-            "time_remaining": self.timer,
-            "scores": self.get_scores(),
-            "current_question": self._serialize_current_question(),
-            "players": [
-                {
-                    "id": self.players["player1"].get_id(),
-                    "name": self.players["player1"].playerModel.name,
-                    "elo": self.players["player1"].get_elo(),
-                },
-                {
-                    "id": self.players["player2"].get_id(),
-                    "name": self.players["player2"].playerModel.name,
-                    "elo": self.players["player2"].get_elo(),
-                },
-            ],
-        }
+            if n >= len(SUBJECTS):
+                guaranteed_subjects = SUBJECTS[:]
+            else:
+                guaranteed_subjects = random.sample(SUBJECTS, n)
+
+            rows = []
+            seen_ids = set()
+
+            for subj in guaranteed_subjects:
+                try:
+                    res = get_random_questions([subj], 1)
+                except Exception:
+                    res = []
+                for r in (res or []):
+                    rid = r.get("id")
+                    if rid and rid not in seen_ids:
+                        rows.append(r)
+                        seen_ids.add(rid)
+                        break
+
+            remaining = n - len(rows)
+            safety = 0
+            while remaining > 0 and safety < 6:
+                try:
+                    pool = get_random_questions([], remaining * 3)
+                except Exception:
+                    pool = []
+                for r in (pool or []):
+                    rid = r.get("id")
+                    if rid and rid not in seen_ids:
+                        rows.append(r)
+                        seen_ids.add(rid)
+                        if len(rows) >= n:
+                            break
+                remaining = n - len(rows)
+                safety += 1
+
+            out: list[Question] = []
+            for r in rows[:n]:
+                stem = r.get("stem") or r.get("prompt") or "Untitled"
+                choices = r.get("choices") or []
+                idx = r.get("answer_idx")
+                if not isinstance(choices, list) or len(choices) != 4:
+                    continue
+                if not isinstance(idx, int) or not (0 <= idx < 4):
+                    continue
+                correct_letter = LETTERS[idx]
+                out.append(Question(stem, choices, correct_letter))
+
+            return out if out else _fallback(n)
+
+        except Exception:
+            return _fallback(num_questions)
