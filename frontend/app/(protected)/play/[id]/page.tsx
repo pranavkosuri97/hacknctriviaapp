@@ -1,6 +1,7 @@
 // builtin
 
 // external
+import { Card } from "pixel-retroui";
 
 // internal
 import GameRoomClient from "@/components/play/game-client";
@@ -11,6 +12,8 @@ export default async function GamePage() {
     const { userId } = await getCurrentUserClient();
 
     return (
-        <GameRoomClient userId={userId} />
+        <Card bg="#ffffff" textColor="#000000" className="p-6 rounded-xl shadow-md">
+            <GameRoomClient userId={userId} />
+        </Card>
     );
 }

@@ -1,6 +1,7 @@
 // builtin
 
 // external
+import { Card } from "pixel-retroui";
 
 // internal
 import PlayerStatistics from "@/components/stats/player-statistics";
@@ -24,6 +25,8 @@ export default async function StatisticsPage() {
     const userGames: GameResult[] = await getGameResultsByPlayerId(userId);
 
     return (
-        <PlayerStatistics player={user} results={userGames} />
+        <Card bg="#ffffff" textColor="#000000" className="p-6 rounded-xl shadow-md">
+            <PlayerStatistics player={user} results={userGames} />
+        </Card>
     );
 }

@@ -109,14 +109,14 @@ export default function GameRoom({ gameState, userId, gameId }: GameRoomProps) {
     return (
         <div className="game-room p-2 sm:p-6 max-w-4xl mx-auto bg-white rounded shadow flex flex-col sm:flex-row gap-4 sm:gap-8">
             <div className="flex-1">
-                <h2 className="text-2xl font-bold mb-4">Trivia Question</h2>
                 <div className="mb-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-                    <div className="text-lg font-semibold">{state.currentQuestion.question}</div>
+                    <h2 className="text-2xl font-bold">Trivia Question</h2>
                     <div className="text-lg font-mono px-3 py-1 bg-gray-200 rounded self-end sm:self-auto">
                         ⏰ {state.time_remaining ?? 0}s
                     </div>
                 </div>
                 <div className="mb-6">
+                    <div className="text-lg font-semibold mb-4">{state.currentQuestion.question}</div>
                     <div className="grid grid-cols-1 gap-2">
                         {state.currentQuestion.choices?.map((choice, idx) => {
                             let buttonColor = "bg-gray-50 border-gray-300";
