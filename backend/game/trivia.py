@@ -65,6 +65,18 @@ class TriviaGame:
                 "question_number": self.get_question_number(),
                 "total_questions": self.get_number_questions(),
                 "time_remaining": self.timer,
+                "players": [
+                    {
+                        "id": self.players["player1"].get_id(),
+                        "name": self.players["player1"].playerModel.name,
+                        "elo": self.players["player1"].get_elo(),
+                    },
+                    {
+                        "id": self.players["player2"].get_id(),
+                        "name": self.players["player2"].playerModel.name,
+                        "elo": self.players["player2"].get_elo(),
+                    },
+                ],
             },
         )
 
@@ -254,6 +266,7 @@ class TriviaGame:
 
         payload: Dict[str, Any] = {"game_id": str(self.id)}
         payload.update(data)
+        payload.update({"snapshot": self.get_snapshot()})
         await self.event_callback(event_type, payload)
 
     def _serialize_current_question(self) -> Optional[Dict]:
