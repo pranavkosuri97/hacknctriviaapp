@@ -50,7 +50,7 @@ async def hello_websocket(websocket: WebSocket) -> None:
     await websocket.close()
 
 
-@app.websocket("/ws/lobby/<str:player_id>")
+@app.websocket("/ws/lobby/{player_id}")
 async def lobby_websocket(websocket: WebSocket, player_id: str) -> None:
     await connection_manager.connect(player_id, websocket, ConnectionType.LOBBY)
     print("connected")
