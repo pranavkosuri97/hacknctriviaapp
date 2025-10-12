@@ -7,21 +7,22 @@ import { useEffect, useId, useState } from "react";
 // internal
 import { formatGameMode, GAME_MODES, GameMode, parseGameMode } from "@/lib/game/modes";
 import { useWebSocket } from "@/hooks/useWebsocket";
-import { type QueueMessage, type QueueRequest, QueueStatus } from "@/lib/game/queue-ws-types";
+import { mapUserToPlayer, type QueueMessage, type QueueRequest, QueueStatus } from "@/lib/game/queue-ws-types";
+import type { User } from "@/lib/db/user/types";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
-if (!BACKEND_URL) throw new Error("Environment variable NEXT_PUBLIC_BACKEND_URL is not set!");
+const WEBSOCKET_URL = process.env.NEXT_PUBLIC_WEBSOCKET_URL;
+if (!WEBSOCKET_URL) throw new Error("Environment variable NEXT_PUBLIC_WEBSOCKET_URL is not set!");
 
 interface GameModeSelectorProps {
-    userId: string;
+    user: User;
 }
 
-export default function GameModeSelector({ userId }: GameModeSelectorProps) {
+export default function GameModeSelector({ user }: GameModeSelectorProps) {
     const [selectedMode, setSelectedMode] = useState<GameMode>(GameMode.NORMAL);
     const [loading, setLoading] = useState(false);
     const [queueTime, setQueueTime] = useState(0);
     const selectorId = useId();
-    const { send } = useWebSocket<QueueRequest, QueueMessage>(`${BACKEND_URL}/lobby/${userId}`, (data) => {
+    const { send } = useWebSocket<QueueRequest, QueueMessage>(`${WEBSOCKET_URL}/ws/lobby/${user.user_id}`, (data) => {
         console.log(data);
     });
 
@@ -41,12 +42,12 @@ export default function GameModeSelector({ userId }: GameModeSelectorProps) {
 
     const handleQueue = () => {
         setLoading(true);
-        send({ userId, status: QueueStatus.JOIN });
+        send({ player: mapUserToPlayer(user), type: QueueStatus.JOIN });
     };
 
     const handleStopQueue = () => {
         setLoading(false);
-        send({ userId, status: QueueStatus.LEAVE });
+        send({ player: mapUserToPlayer(user), type: QueueStatus.LEAVE });
     };
 
     return (

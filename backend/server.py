@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from connection_manager import ConnectionManager, ConnectionType
@@ -21,6 +22,14 @@ class CreateGameRequest(BaseModel):
 
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 connection_manager = ConnectionManager()
 game_manager = GameManager(connection_manager)
@@ -57,34 +66,40 @@ async def lobby_websocket(websocket: WebSocket, player_id: str) -> None:
     try:
         while True:
             message = await websocket.receive_json()
+            print(message)
             message_type = message.get("type")
 
             if message_type == "join":
+                print(f"[LOBBY] Got join message")
                 player_data = message.get("player")
                 if not player_data:
                     await websocket.send_json({"type": "error", "message": "missing player payload"})
+                    print(f"[LOBBY] Player payload missing for join: {message}")
                     continue
 
                 player = PlayerModel(**player_data)
-                if player.id != player_id:
-                    await websocket.send_json({"type": "error", "message": "player id mismatch"})
-                    continue
 
                 await lobby_manager.enqueue_player(player)
+                print(f"[LOBBY] Player {player.id} joined lobby.")
 
             elif message_type == "leave":
                 await lobby_manager.remove_player(player_id)
+                print(f"[LOBBY] Player {player_id} left lobby.")
                 break
 
             else:
                 await websocket.send_json({"type": "error", "message": "unknown lobby event"})
+                print(f"[LOBBY] Unknown lobby event: {message_type} from player {player_id}.")
 
     except WebSocketDisconnect:
         pass
+    except Exception as e:
+        print(e)
     finally:
+        print(f"[LOBBY] Disconnecting...")
         await lobby_manager.remove_player(player_id)
         await connection_manager.disconnect(player_id, websocket, ConnectionType.LOBBY)
-        await websocket.close()
+        # await websocket.close()
 
 @app.websocket("/ws/games/{game_id}/{player_id}")
 async def game_websocket(websocket: WebSocket, game_id: str, player_id: str) -> None:
