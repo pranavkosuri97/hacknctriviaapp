@@ -9,8 +9,7 @@ from openai import OpenAI
 import regex as re
 import random
 
-# --- CAPS NORMALIZATION HELPERS ---
-import re as _re  # alias to avoid clashing with regex import name
+import re as _re
 
 SMALL_WORDS = {"a", "an", "and", "as", "at", "but", "by", "for", "in", "nor", "of", "on", "or", "per", "the", "to", "vs", "via", "with"}
 ACRONYMS = {"US", "USA", "UK", "UAE", "UN", "EU", "NATO", "FBI", "CIA", "NBA", "NFL", "MLB", "NHL", "U2"}
@@ -49,9 +48,7 @@ def normalize_caps(text: str) -> str:
         out.append('-'.join(new_subs))
     return ' '.join(out)
 
-# ----------------------------
-# ENV / Clients
-# ----------------------------
+
 load_dotenv()
 
 SUPABASE_URL = os.environ["SUPABASE_URL"]
@@ -76,18 +73,12 @@ SUBJECTS = ["history", "science", "arts", "geography", "pop culture", "sports"]
 sb: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 ai = OpenAI(api_key=OPENAI_API_KEY)
 
-# ----------------------------
-# Dataclass
-# ----------------------------
 @dataclass
 class QA:
     sheet: str
     question: str
     answer: str
 
-# ----------------------------
-# Parsers
-# ----------------------------
 LANES = [("A", "B"), ("D", "E"), ("G", "H")]
 FALLBACK_LANES = [("G", "F")]
 
@@ -142,9 +133,6 @@ def read_all_sheets(xlsx_path: str) -> List[QA]:
         all_qas.extend(qas)
     return all_qas
 
-# ----------------------------
-# Classification
-# ----------------------------
 CLASSIFY_SYS = "You classify trivia Q&A by subject and difficulty."
 CLASSIFY_USER_TMPL = """Classify the following trivia item into one subject and a difficulty 1-10.
 
@@ -173,9 +161,6 @@ def classify_subject_and_difficulty(q: str, a: str) -> Tuple[str, int]:
     except Exception:
         return "history", 4
 
-# ----------------------------
-# Distractor Generation
-# ----------------------------
 DISTRACTOR_SYS = "You generate three plausible but incorrect multiple-choice distractors."
 DISTRACTOR_USER_TMPL = """Generate 3 incorrect but plausible answer choices for a pub-quiz question.
 
@@ -212,9 +197,6 @@ def generate_distractors(question: str, answer: str, subject: str) -> List[str]:
     except Exception:
         return [f"{answer} (close but not this)", f"Not {answer}", f"{answer} (incorrect)"][:3]
 
-# ----------------------------
-# QC & Database
-# ----------------------------
 HEADER_TOKENS = {"question", "questions", "answer", "answers", "category", "difficulty"}
 def is_header_like(s: Optional[str]) -> bool:
     return bool(s and s.strip().lower() in HEADER_TOKENS)
@@ -257,9 +239,6 @@ def insert_row(subject: str, stem: str, choices: List[str], answer_idx: int, dif
     except Exception:
         sb.table("questions").insert(payload).execute()
 
-# ----------------------------
-# Main Pipeline
-# ----------------------------
 def main():
     qas = read_all_sheets(XLSX_PATH)
     if not qas:
