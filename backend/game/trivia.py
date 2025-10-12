@@ -285,8 +285,10 @@ class TriviaGame:
 
     def get_snapshot(self) -> Dict[str, Any]:
         """Get a snapshot of the current game state."""
-
-        can_advance = len(self.current_answers) == 2 or self.questions[self.current_question_index].answered_correctly
+        answered_correctly = False
+        if self.current_question_index < len(self.questions):
+            answered_correctly = self.questions[self.current_question_index].answered_correctly
+        can_advance = len(self.current_answers) == 2 or answered_correctly
 
         return {
             "game_id": str(self.id),
@@ -388,7 +390,8 @@ class TriviaGame:
 
             return out if out else _fallback(n)
 
-        except Exception:
+        except Exception as e:
+            print("Question retrieval error: ", e)
             return _fallback(num_questions)
     
     
