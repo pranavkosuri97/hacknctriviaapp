@@ -63,14 +63,18 @@ class TriviaGame:
                 "question_number": self.get_question_number(),
                 "total_questions": self.get_number_questions(),
                 "time_remaining": self.timer,
-                "players": {
-                    self.players["player1"].get_id(): {
+                "players": [
+                    {
+                        "id": self.players["player1"].get_id(),
                         "name": self.players["player1"].playerModel.name,
+                        "elo": self.players["player1"].get_elo(),
                     },
-                    self.players["player2"].get_id(): {
+                    {
+                        "id": self.players["player2"].get_id(),
                         "name": self.players["player2"].playerModel.name,
+                        "elo": self.players["player2"].get_elo(),
                     },
-                },
+                ],
             },
         )
 
@@ -260,6 +264,7 @@ class TriviaGame:
 
         payload: Dict[str, Any] = {"game_id": str(self.id)}
         payload.update(data)
+        payload.update({"snapshot": self.get_snapshot()})
         await self.event_callback(event_type, payload)
 
     def _serialize_current_question(self) -> Optional[Dict]:
@@ -301,3 +306,30 @@ class TriviaGame:
         for idx in range(num_questions):
             questions.append(sample_questions[idx % len(sample_questions)])
         return questions
+    
+    def get_snapshot(self) -> Dict[str, Any]:
+        """Get a snapshot of the current game state."""
+        can_advance = len(self.current_answers) == 2 or (len(self.current_answers) == 1 and ((self.players["player1"].get_score() + self.players["player2"].get_score()) / POINTS_CORRECT) == (self.current_question_index + 1)))
+        return {
+            "game_id": str(self.id),
+            "is_running": self.is_running,
+            "is_finished": self.is_finished,
+            "current_question_index": self.current_question_index,
+            "can_advance": can_advance,
+            "total_questions": self.get_number_questions(),
+            "time_remaining": self.timer,
+            "scores": self.get_scores(),
+            "current_question": self._serialize_current_question(),
+            "players": [
+                {
+                    "id": self.players["player1"].get_id(),
+                    "name": self.players["player1"].playerModel.name,
+                    "elo": self.players["player1"].get_elo(),
+                },
+                {
+                    "id": self.players["player2"].get_id(),
+                    "name": self.players["player2"].playerModel.name,
+                    "elo": self.players["player2"].get_elo(),
+                },
+            ],
+        }
