@@ -26,17 +26,31 @@ export default function GameRoom({ gameState, userId, gameId }: GameRoomProps) {
     const { send } = useWebSocket<GameRequest, GameMessage>(
         `${WEBSOCKET_URL}/ws/games/${gameId}/${userId}`,
         (data) => {
-            console.log(data);
-            setState(prev => getNewGameState(prev, data));
+            setState(prev => {
+                const previousQuestion = prev.currentQuestion.question;
+                const newState = getNewGameState(prev, data)
+                console.log("Closed?", newState.closed);
+
+                if (previousQuestion !== newState.currentQuestion.question) {
+                    resetButtons();
+                }
+
+                return newState;
+            });
         }
     );
+
+    const resetButtons = () => {
+        setSelected(null);
+        setSubmitted(false);
+    }
 
     const handleSelect = (idx: number) => {
         if (!submitted) setSelected(idx);
     };
 
     const handleSubmit = () => {
-        if (selected !== null && !submitted && !gameState.closed) {
+        if (selected !== null && !submitted && !state.closed) {
             const answer = getSelectedLetter(selected);
             send({ type: GameAction.SUBMIT, answer });
             setSubmitted(true);
@@ -66,9 +80,13 @@ export default function GameRoom({ gameState, userId, gameId }: GameRoomProps) {
             }
 
             if (e.key === "N") {
-                if (gameState.closed) {
+                if (state.closed) {
                     handleAdvance();
                 }
+            }
+
+            if (e.key === "T") {
+                console.log("closed?", state.closed);
             }
         };
         window.addEventListener("keydown", onKeyDown);
@@ -105,7 +123,7 @@ export default function GameRoom({ gameState, userId, gameId }: GameRoomProps) {
                             type="button"
                             className="px-6 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
                             onClick={handleSubmit}
-                            disabled={selected === null || submitted || gameState.closed}
+                            disabled={selected === null || submitted || state.closed}
                         >
                             Submit Answer
                         </button>
@@ -114,7 +132,7 @@ export default function GameRoom({ gameState, userId, gameId }: GameRoomProps) {
                             type="button"
                             className="px-6 py-2 bg-violet-600 text-white rounded disabled:opacity-50"
                             onClick={handleAdvance}
-                            disabled={!gameState.closed}
+                            disabled={!state.closed}
                         >
                             Next Question
                         </button>

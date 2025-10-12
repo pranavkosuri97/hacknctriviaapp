@@ -68,6 +68,7 @@ export function getNewGameState(previous: GameState, data: GameMessage): GameSta
 }
 
 function mapSnapshotToGameState(previous: GameState, snapshot: GameSnapshot): GameState {
+    console.log("Snapshot", snapshot);
     const mappedPlayers = snapshot.players.map((p, idx) => ({
         user: {
             user_id: p.id,
