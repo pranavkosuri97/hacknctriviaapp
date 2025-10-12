@@ -6,15 +6,25 @@ import { useEffect, useId, useState } from "react";
 
 // internal
 import { formatGameMode, GAME_MODES, GameMode, parseGameMode } from "@/lib/game/modes";
+import { useWebSocket } from "@/hooks/useWebsocket";
+import { type QueueMessage, type QueueRequest, QueueStatus } from "@/lib/game/queue-ws-types";
 
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+if (!BACKEND_URL) throw new Error("Environment variable NEXT_PUBLIC_BACKEND_URL is not set!");
 
-export default function GameModeSelector() {
+interface GameModeSelectorProps {
+    userId: string;
+}
+
+export default function GameModeSelector({ userId }: GameModeSelectorProps) {
     const [selectedMode, setSelectedMode] = useState<GameMode>(GameMode.NORMAL);
     const [loading, setLoading] = useState(false);
     const [queueTime, setQueueTime] = useState(0);
     const selectorId = useId();
+    const { send } = useWebSocket<QueueRequest, QueueMessage>(`${BACKEND_URL}/lobby/${userId}`, (data) => {
+        console.log(data);
+    });
 
-    // Timer effect
     useEffect(() => {
         let timer: NodeJS.Timeout | undefined;
         if (loading) {
@@ -31,10 +41,12 @@ export default function GameModeSelector() {
 
     const handleQueue = () => {
         setLoading(true);
+        send({ userId, status: QueueStatus.JOIN });
     };
 
     const handleStopQueue = () => {
         setLoading(false);
+        send({ userId, status: QueueStatus.LEAVE });
     };
 
     return (
