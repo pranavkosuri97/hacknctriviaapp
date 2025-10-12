@@ -1,6 +1,7 @@
 // builtin
 
 // external
+import { Card } from "pixel-retroui";
 
 // internal
 import GameModeSelector from "@/components/play/mode-selector";
@@ -18,6 +19,8 @@ export default async function QueueGamePage() {
     }
 
     return (
-        <GameModeSelector user={user} />
+        <Card bg="#ffffff" textColor="#000000" className="p-6 rounded-xl shadow-md">
+            <GameModeSelector user={user} />
+        </Card>
     );
 }
