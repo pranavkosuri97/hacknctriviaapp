@@ -114,7 +114,10 @@ class TriviaGame:
         points_earned = POINTS_CORRECT if is_correct else 0
         can_advance = False
         if len(self.current_answers) < 2:
-            self.players[player_id].update_score(points_earned)
+            p1_id = self.players["player1"].get_id()
+            p2_id = self.players["player2"].get_id()
+            id = "player1" if player_id == p1_id else "player2" if player_id == p2_id else None
+            self.players[id].update_score(points_earned)
             self.current_answers.add(player_id)
             if is_correct or len(self.current_answers) == 2:
                 can_advance = True
