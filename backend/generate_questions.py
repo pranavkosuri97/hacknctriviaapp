@@ -10,9 +10,9 @@ from supabase import create_client, Client
 
 load_dotenv()
 
-SUPABASE_URL = os.environ["SUPABASE_URL"]
-SUPABASE_KEY = os.environ["SUPABASE_SERVICE_KEY"]
-OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
 
 BATCH_SIZE = int(os.getenv("BATCH_SIZE", "25"))
