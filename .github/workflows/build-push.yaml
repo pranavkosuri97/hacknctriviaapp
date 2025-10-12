@@ -27,7 +27,7 @@ jobs:
         password: ${{ secrets.DOCKER_HUB_PAT }}
     -
       name: Docker compose build
-      run: docker compose build --platform linux/amd64
+      run: docker compose build --push
     - 
       name: Docker compose push
       run: docker compose push
