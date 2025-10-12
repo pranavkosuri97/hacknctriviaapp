@@ -27,14 +27,13 @@ class TriviaGame:
         player2: PlayerModel,
         timer_length: int = 300,
         num_questions: int = 10,
-        questions: Optional[list[Question]] = None,
     ) -> None:
         self.match_type = ""
         self.players: Dict[str, Player] = {
             "player1": Player(player1),
             "player2": Player(player2),
         }
-        self.questions = questions or TriviaGame.load_questions(num_questions)
+        self.questions = TriviaGame.load_questions(num_questions)
         if not self.questions:
             raise ValueError("TriviaGame requires at least one question to start")
 

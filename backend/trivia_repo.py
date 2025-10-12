@@ -131,14 +131,14 @@ class TriviaRepo:
         p2_id: str,
         raw_payload: Dict[str, Any],
     ) -> None:
-        await self._run(
+        (await self._run(
             self.sb.table("games").update,
             {
                 "ended_at": "now()",
                 "reason": reason,
                 "winner": winner,
             },
-        ).eq("id", game_id)
+        )).eq("id", game_id)
 
         updates = []
         for role, score in final_scores.items():
