@@ -10,6 +10,9 @@ from fastapi import WebSocket
 from connection_manager import ConnectionManager
 from game.player import PlayerModel
 from game_manager import GameManager
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class LobbyManager:
@@ -20,6 +23,10 @@ class LobbyManager:
         self.game_manager = game_manager
         self._waiting_queue: Deque[PlayerModel] = deque()
         self._active_waiters: Dict[str, PlayerModel] = {}
+        logger = logging.getLogger(__name__)
+        logger.setLevel(logging.DEBUG) # Set the desired log level
+
+        # ... in your FastAPI code
 
     async def enqueue_player(self, player: PlayerModel) -> None:
         """Add a player to the matchmaking queue and attempt to pair."""
@@ -34,6 +41,8 @@ class LobbyManager:
             return
 
         self._waiting_queue.append(player)
+        logger.info(f"Player {player.id} added to waiting queue")
+        logger.debug("Current queue: " + str(self._waiting_queue))
         self._active_waiters[player.id] = player
         await self._attempt_pair()
 
@@ -57,7 +66,7 @@ class LobbyManager:
             self._active_waiters.pop(player2.id, None)
 
             game_id = await self.game_manager.create_game(player1, player2)
-
+            print(f"Paired {player1.id} and {player2.id} into game {game_id}")
             await self.connection_manager.broadcast_lobby(
                 player1.id,
                 {
