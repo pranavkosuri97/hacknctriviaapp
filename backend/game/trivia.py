@@ -29,8 +29,8 @@ class TriviaGame:
     ) -> None:
         self.match_type = ""
         self.players: Dict[str, Player] = {
-            "player1": Player(player1),
-            "player2": Player(player2),
+            player1.id: Player(player1),
+            player2.id: Player(player2),
         }
         self.questions = questions or TriviaGame.load_questions(num_questions)
         if not self.questions:

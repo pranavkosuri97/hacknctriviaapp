@@ -7,8 +7,9 @@ import { useEffect, useId, useState } from "react";
 // internal
 import { formatGameMode, GAME_MODES, GameMode, parseGameMode } from "@/lib/game/modes";
 import { useWebSocket } from "@/hooks/useWebsocket";
-import { mapUserToPlayer, type QueueMessage, type QueueRequest, QueueStatus } from "@/lib/game/queue-ws-types";
+import { mapUserToPlayer, type QueueMessage, type QueueRequest, QueueResponse, QueueStatus } from "@/lib/game/queue-ws-types";
 import type { User } from "@/lib/db/user/types";
+import { useRouter } from "next/navigation";
 
 const WEBSOCKET_URL = process.env.NEXT_PUBLIC_WEBSOCKET_URL;
 if (!WEBSOCKET_URL) throw new Error("Environment variable NEXT_PUBLIC_WEBSOCKET_URL is not set!");
@@ -21,9 +22,13 @@ export default function GameModeSelector({ user }: GameModeSelectorProps) {
     const [selectedMode, setSelectedMode] = useState<GameMode>(GameMode.NORMAL);
     const [loading, setLoading] = useState(false);
     const [queueTime, setQueueTime] = useState(0);
+    const router = useRouter();
     const selectorId = useId();
     const { send } = useWebSocket<QueueRequest, QueueMessage>(`${WEBSOCKET_URL}/ws/lobby/${user.user_id}`, (data) => {
         console.log(data);
+        if (data.type === QueueResponse.GAME_FOUND) {
+            router.push(`/play/${data.game_id}`);
+        }
     });
 
     useEffect(() => {
