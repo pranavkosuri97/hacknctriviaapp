@@ -38,10 +38,7 @@ class TriviaRepo:
         match_type: Optional[str],
         p1: PlayerModel,
         p2: PlayerModel,
-        raw_payload: Dict[str, Any],
     ) -> None:
-        await self.upsert_player(p1.id, p1.name, p1.elo)
-        await self.upsert_player(p2.id, p2.name, p2.elo)
 
         await self._run(
             self.sb.table("games").insert,
@@ -69,11 +66,6 @@ class TriviaRepo:
                     "starting_elo": p2.elo,
                 },
             ],
-        )
-
-        await self._run(
-            self.sb.table("game_events").insert,
-            {"game_id": game_id, "type": "game_started", "payload": raw_payload},
         )
 
     async def record_answer(

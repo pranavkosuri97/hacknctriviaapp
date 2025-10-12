@@ -35,6 +35,13 @@ class GameManager:
         loop_task = asyncio.create_task(game.run_game_loop())
         self._loop_tasks[game_id] = loop_task
 
+        await self.repo.record_game_started(
+            game_id=game_id,
+            p1=player1,
+            p2=player2,
+            timer_length=timer_length,
+            num_questions=num_questions,
+        )
         return game_id
 
     async def end_game(self, game_id: str) -> None:
