@@ -14,6 +14,14 @@ export function getSelectedLetter(index: number): string {
     return String.fromCharCode(code);
 }
 
+export function getAnswerIndex(answer: string): number {
+    if (!answer || answer.length !== 1) return -1;
+    const code = answer.toUpperCase().charCodeAt(0);
+    const idx = code - 'A'.charCodeAt(0);
+    if (idx < 0 || idx > 8) return -1;
+    return idx + 1;
+}
+
 export function getNewGameState(previous: GameState, data: GameMessage): GameState {
     switch (data.type) {
         case "game_started": {
@@ -32,7 +40,7 @@ export function getNewGameState(previous: GameState, data: GameMessage): GameSta
                 currentQuestion: {
                     question: question.prompt,
                     choices: question.choices,
-                    answer: ""
+                    answer: -1
                 },
                 players: mappedPlayers,
                 closed: false,
@@ -46,7 +54,7 @@ export function getNewGameState(previous: GameState, data: GameMessage): GameSta
                 currentQuestion: {
                     question: question.prompt,
                     choices: question.choices,
-                    answer: ""
+                    answer: -1
                 },
                 closed: false,
 
@@ -89,11 +97,11 @@ function mapSnapshotToGameState(previous: GameState, snapshot: GameSnapshot): Ga
         currentQuestion: snapshot.current_question ? {
             question: snapshot.current_question.prompt ?? "",
             choices: snapshot.current_question.choices ?? "",
-            answer: ""
+            answer: snapshot.current_question.answer ?? -1
         } : {
             question: "",
             choices: [],
-            answer: ""
+            answer: -1,
         },
         players: mappedPlayers,
         closed: snapshot.can_advance,

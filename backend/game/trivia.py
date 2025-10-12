@@ -259,6 +259,7 @@ class TriviaGame:
         return {
             "prompt": question.get_prompt(),
             "choices": question.get_choices(),
+            "answer": question.answer,
         }
 
     def _determine_winner(self) -> str:

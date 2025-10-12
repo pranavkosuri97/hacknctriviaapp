@@ -19,23 +19,20 @@ interface GameRoomProps {
     userId: string;
     gameId: string;
 }
-
 export default function GameRoom({ gameState, userId, gameId }: GameRoomProps) {
     const [state, setState] = useState<GameState>(gameState);
     const [selected, setSelected] = useState<number | null>(null);
     const [submitted, setSubmitted] = useState(false);
+
     const { send } = useWebSocket<GameRequest, GameMessage>(
         `${WEBSOCKET_URL}/ws/games/${gameId}/${userId}`,
         (data) => {
             setState(prev => {
                 const previousQuestion = prev.currentQuestion.question;
                 const newState = getNewGameState(prev, data)
-                console.log("Closed?", newState.closed);
-
                 if (previousQuestion !== newState.currentQuestion.question) {
                     resetButtons();
                 }
-
                 return newState;
             });
         }
@@ -110,39 +107,49 @@ export default function GameRoom({ gameState, userId, gameId }: GameRoomProps) {
     }
 
     return (
-        <div className="game-room p-6 max-w-4xl mx-auto bg-white rounded shadow flex flex-row gap-8">
+        <div className="game-room p-2 sm:p-6 max-w-4xl mx-auto bg-white rounded shadow flex flex-col sm:flex-row gap-4 sm:gap-8">
             <div className="flex-1">
                 <h2 className="text-2xl font-bold mb-4">Trivia Question</h2>
-                <div className="mb-2 flex items-center justify-between">
+                <div className="mb-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                     <div className="text-lg font-semibold">{state.currentQuestion.question}</div>
-                    <div className="text-lg font-mono px-3 py-1 bg-gray-200 rounded">
+                    <div className="text-lg font-mono px-3 py-1 bg-gray-200 rounded self-end sm:self-auto">
                         ⏰ {state.time_remaining ?? 0}s
                     </div>
                 </div>
                 <div className="mb-6">
                     <div className="grid grid-cols-1 gap-2">
                         {state.currentQuestion.choices?.map((choice, idx) => {
-                            let buttonColor = (selected === idx) ? "bg-blue-100 border-blue-500" : "bg-gray-50";
-                            if (state.closed) {
-                                buttonColor = (choice === state.currentQuestion.answer) ? "bg-green-600" : "bg-gray-300";
+                            let buttonColor = "bg-gray-50 border-gray-300";
+                            const answerIndex = state.currentQuestion.answer
+
+                            if ((submitted || state.closed) && idx === answerIndex) {
+                                buttonColor = "bg-green-100 border-green-600";
+                            }
+
+                            if ((submitted || state.closed) && selected === idx && idx !== answerIndex) {
+                                buttonColor = "bg-red-100 border-red-600";
+                            }
+
+                            if (!submitted && !state.closed && selected === idx) {
+                                buttonColor = "bg-blue-100 border-blue-500";
                             }
                             return (
-                            <button
-                                type="button"
-                                key={choice}
-                                className={`border rounded px-4 py-2 text-left ${buttonColor}`}
-                                onClick={() => handleSelect(idx)}
-                                disabled={submitted}
-                            >
-                                <span className="font-bold mr-2">{idx + 1}.</span> {choice}
-                            </button>
-                        )}
-                        )}
+                                <button
+                                    type="button"
+                                    key={choice}
+                                    className={`border rounded px-4 py-2 text-left w-full ${buttonColor}`}
+                                    onClick={() => handleSelect(idx)}
+                                    disabled={submitted}
+                                >
+                                    <span className="font-bold mr-2">{idx + 1}.</span> {choice}
+                                </button>
+                            )
+                        })}
                     </div>
-                    <div className="flex justify-between w-full mt-4">
+                    <div className="flex flex-col sm:flex-row justify-between w-full mt-4 gap-2">
                         <button
                             type="button"
-                            className="px-6 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
+                            className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
                             onClick={handleSubmit}
                             disabled={selected === null || submitted || state.closed}
                         >
@@ -151,7 +158,7 @@ export default function GameRoom({ gameState, userId, gameId }: GameRoomProps) {
 
                         <button
                             type="button"
-                            className="px-6 py-2 bg-violet-600 text-white rounded disabled:opacity-50"
+                            className="w-full sm:w-auto px-6 py-2 bg-violet-600 text-white rounded disabled:opacity-50"
                             onClick={handleAdvance}
                             disabled={!state.closed}
                         >
@@ -162,7 +169,7 @@ export default function GameRoom({ gameState, userId, gameId }: GameRoomProps) {
                 </div>
             </div>
 
-            <div className="w-64 flex-shrink-0">
+            <div className="w-full sm:w-64 flex-shrink-0 mt-4 sm:mt-0">
                 <h3 className="text-lg font-semibold mb-2">Players</h3>
                 <ul className="space-y-1">
                     {state.players.map((player) => {
