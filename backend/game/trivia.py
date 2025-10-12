@@ -1,143 +1,270 @@
-from constants import POINTS_CORRECT, GameActions
-from player import Player, PlayerModel
-from uuid import uuid4
+from __future__ import annotations
+
 import asyncio
-from typing import Callable, Optional
+from typing import Any, Awaitable, Callable, Dict, Optional, Set
+from uuid import uuid4
+
+from game.constants import POINTS_CORRECT, GameActions
+from game.player import Player, PlayerModel
+from game.question import Question
+
+EventCallback = Callable[[str, Dict[str, Any]], Awaitable[None]]
+
 
 class TriviaGame:
-    def __init__(self, player1: PlayerModel, player2: PlayerModel, timer_length: int = 300, num_questions: int = 10):
+    def __init__(
+        self,
+        player1: PlayerModel,
+        player2: PlayerModel,
+        timer_length: int = 300,
+        num_questions: int = 10,
+        questions: Optional[list[Question]] = None,
+    ) -> None:
         self.match_type = ""
-        self.players = {"player1": Player(player1), "player2": Player(player2)}
-        self.questions = TriviaGame.load_questions(num_questions) # load questions from database
+        self.players: Dict[str, Player] = {
+            "player1": Player(player1),
+            "player2": Player(player2),
+        }
+        self.questions = questions or TriviaGame.load_questions(num_questions)
+        if not self.questions:
+            raise ValueError("TriviaGame requires at least one question to start")
+
         self.current_question_index = 0
-        self.timer = timer_length
+        self.current_answers: Set[str] = set()
+        self.timer = max(0, int(timer_length))
         self.id = uuid4()
         self.is_running = False
         self.is_finished = False
-        self.event_callback: Optional[Callable] = None  # Callback to send events to manager
+        self.event_callback: Optional[EventCallback] = None
 
-    def receive_answer(self, player, answer):
+    # ------------------------------------------------------------------
+    # Public lifecycle methods
+    # ------------------------------------------------------------------
+    async def run_game_loop(self) -> None:
+        """Run the main game loop (timer + automatic progression)."""
+        if self.is_running:
+            return
+
+        self.is_running = True
+        self.is_finished = False
+
+        await self._dispatch_event(
+            "game_started",
+            {
+                "game_id": str(self.id),
+                "question": self._serialize_current_question(),
+                "question_number": self.get_question_number(),
+                "total_questions": self.get_number_questions(),
+                "time_remaining": self.timer,
+            },
+        )
+
+        try:
+            while self.is_running and not self.is_finished:
+                await asyncio.sleep(1)
+
+                if not self.is_running:
+                    break
+
+                self.timer = max(0, self.timer - 1)
+
+                await self._dispatch_event(
+                    "timer_update",
+                    {
+                        "game_id": str(self.id),
+                        "time_remaining": self.timer,
+                        "question_number": self.get_question_number(),
+                    },
+                )
+
+                if self.timer <= 0:
+                    await self._end_game(reason="timer_expired")
+                    break
+
+                if self.is_finished:
+                    break
+        except Exception as exc:  # pragma: no cover - defensive
+            await self._dispatch_event(
+                "game_error",
+                {
+                    "game_id": str(self.id),
+                    "error": str(exc),
+                },
+            )
+            raise
+
+    async def stop_game(self) -> None:
+        """Stop the game loop without declaring a winner."""
+        self.is_running = False
+        await self._end_game(reason="stopped")
+
+    # ------------------------------------------------------------------
+    # Player interaction
+    # ------------------------------------------------------------------
+    async def receive_answer(self, player_id: str, answer) -> Dict[str, Any]:
+        """Process an answer from a player and dispatch relevant events."""
+        if self.is_finished or not self.is_running:
+            return {"status": "finished"}
+
         if self.timer <= 0:
-            return "timeout"
-        if player == self.players["player1"].get_id():
-            self.players["player1"].update_score(POINTS_CORRECT if answer == self.questions[self.current_question_index].answer else 0)
-            self.current_question_index += 1
-            return self.players["player1"].get_id()
-        elif player == self.players["player2"].get_id():
-            self.players["player2"].update_score(POINTS_CORRECT if answer == self.questions[self.current_question_index].answer else 0)
-            self.current_question_index += 1
-            return self.players["player2"].get_id()
+            await self._end_game(reason="timer_expired")
+            return {"status": "timeout"}
 
-    async def tick(self):
-        # Handle game timer tick
-        if self.timer > 0:
-            self.timer -= 1
-            return self.timer
-        self.resolve_game()
-        return 0
+        player_key = self._resolve_player_key(player_id)
+        if not player_key:
+            return {"status": "invalid_player"}
 
-    def resolve_game(self):
-        # Determine winner based on scores
-        if self.players["player1"].score > self.players["player2"].score:
-            return "player1"
-        elif self.players["player2"].score > self.players["player1"].score:
-            return "player2"
-        else:
-            return "draw"
+        if player_key in self.current_answers:
+            return {"status": "already_answered"}
 
-    def get_question_number(self):
+        question = self.questions[self.current_question_index]
+        is_correct = question.answer_correct(answer)
+        points_earned = POINTS_CORRECT if is_correct else 0
+
+        self.players[player_key].update_score(points_earned)
+        self.current_answers.add(player_key)
+
+        payload = {
+            "game_id": str(self.id),
+            "player": player_key,
+            "player_id": player_id,
+            "answer": answer,
+            "is_correct": is_correct,
+            "points_earned": points_earned,
+            "current_scores": self.get_scores(),
+            "question_number": self.get_question_number(),
+            "remaining_players": len(self.players) - len(self.current_answers),
+        }
+        await self._dispatch_event("answer_received", payload)
+
+        if len(self.current_answers) == len(self.players):
+            await self._advance_to_next_question()
+
+        return {"status": "ok", "is_correct": is_correct}
+
+    async def advance_to_next_question(self) -> None:
+        """Public hook for managers to force-advance the game."""
+        if self.is_finished:
+            return
+        await self._advance_to_next_question()
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+    def get_question_number(self) -> int:
         return self.current_question_index + 1
 
-    def get_number_questions(self):
+    def get_number_questions(self) -> int:
         return len(self.questions)
 
-    async def run_game_loop(self):
-        """Run the main game loop - handles timing and game progression"""
-        self.is_running = True
-        
-        try:
-            # Send game start event
-            await self._dispatch_event("game_started", {
+    def get_scores(self) -> Dict[str, int]:
+        return {
+            key: player.get_score() for key, player in self.players.items()
+        }
+
+    def get_id(self) -> str:
+        return str(self.id)
+
+    def set_event_callback(self, callback: EventCallback | None) -> None:
+        self.event_callback = callback
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+    async def _advance_to_next_question(self) -> None:
+        """Advance to the next question or finish the game."""
+        self.current_answers.clear()
+        self.current_question_index += 1
+
+        if self.current_question_index >= len(self.questions):
+            await self._end_game(reason="questions_completed")
+            return
+
+        await self._dispatch_event(
+            "question_advanced",
+            {
                 "game_id": str(self.id),
-                "question": self.get_current_question(),
+                "question": self._serialize_current_question(),
                 "question_number": self.get_question_number(),
-                "total_questions": self.get_number_questions()
-            })
-            
-            # Main game loop
-            while self.is_running and not self.is_finished:
-                # Handle timer tick
-                remaining_time = await self.tick()
-                
-                # Broadcast timer update every second
-                await self._dispatch_event("timer_update", {
-                    "time_remaining": remaining_time,
-                    "question_number": self.get_question_number()
-                })
-                
-                # Check if game should end
-                if remaining_time <= 0 or self.current_question_index >= len(self.questions):
-                    await self._end_game()
-                    break
-                
-        except Exception as e:
-            await self._dispatch_event("game_error", {"error": str(e)})
-            self.is_running = False
-            
-    async def _end_game(self):
-        """Handle game ending logic"""
+                "total_questions": self.get_number_questions(),
+                "time_remaining": self.timer,
+            },
+        )
+
+    async def _end_game(self, reason: str) -> None:
+        if self.is_finished:
+            return
+
         self.is_finished = True
         self.is_running = False
-        
-        winner = self.resolve_game()
-        await self._dispatch_event("game_ended", {
-            "winner": winner,
-            "final_scores": self.get_scores(),
-            "game_id": str(self.id)
-        })
-    
-    def set_event_callback(self, callback: Callable):
-        """Set the callback function to send events to the manager"""
-        self.event_callback = callback
-        
-    async def _dispatch_event(self, event_type: str, data: dict):
-        """Send events to the manager if callback is set"""
-        if self.event_callback:
-            await self.event_callback(event_type, data)
-    
-    def get_current_question(self):
-        """Get the current question data"""
-        if self.current_question_index < len(self.questions):
-            return self.questions[self.current_question_index]
-        return None
-    
-    def get_scores(self):
-        """Get current scores for both players"""
+        self.current_answers.clear()
+        self.timer = max(0, self.timer)
+
+        await self._dispatch_event(
+            "game_ended",
+            {
+                "game_id": str(self.id),
+                "reason": reason,
+                "winner": self._determine_winner(),
+                "final_scores": self.get_scores(),
+            },
+        )
+
+    async def _dispatch_event(self, event_type: str, data: Dict[str, Any]) -> None:
+        if self.event_callback is None:
+            return
+
+        payload: Dict[str, Any] = {"game_id": str(self.id)}
+        payload.update(data)
+        await self.event_callback(event_type, payload)
+
+    def _serialize_current_question(self) -> Optional[Dict]:
+        if not (0 <= self.current_question_index < len(self.questions)):
+            return None
+
+        question = self.questions[self.current_question_index]
         return {
-            "player1": self.players["player1"].get_score(),
-            "player2": self.players["player2"].get_score()
+            "prompt": question.get_prompt(),
+            "choices": question.get_choices(),
         }
-    
-    def stop_game(self):
-        """Stop the game loop"""
-        self.is_running = False
-    
-    def perform_action(self, action):
-        # Placeholder for performing actions like "skip", "50-50", etc.
-        if action == GameActions.START:
-            pass
-        elif action == GameActions.ANSWER:
-            pass
-        elif action == GameActions.ADVANCE:
-            pass
-        elif action == GameActions.FINISH:
-            pass
 
-    def get_id(self):
-        return self.id
+    def _resolve_player_key(self, player_id: str) -> Optional[str]:
+        for key, player in self.players.items():
+            if player.get_id() == player_id:
+                return key
+        return None
 
+    def _determine_winner(self) -> str:
+        score1 = self.players["player1"].get_score()
+        score2 = self.players["player2"].get_score()
+
+        if score1 > score2:
+            return "player1"
+        if score2 > score1:
+            return "player2"
+        return "draw"
+
+    # ------------------------------------------------------------------
+    # Static utilities
+    # ------------------------------------------------------------------
     @staticmethod
-    def load_questions(category: str, num_questions: int = 1):
-        return [] * num_questions  # Placeholder for actual question loading logic
+    def load_questions(num_questions: int = 1) -> list[Question]:
+        """Load questions (temporary stub until database integration)."""
+        sample_questions = [
+            Question("What is 2 + 2?", ["1", "2", "4", "5"], "C"),
+            Question("Capital of France?", ["London", "Paris", "Berlin", "Rome"], "B"),
+            Question("Color mixing red + blue?", ["Green", "Purple", "Orange", "Yellow"], "B"),
+            Question("How many days in a leap year?", ["363", "364", "365", "366"], "D"),
+            Question("Largest planet?", ["Earth", "Jupiter", "Mars", "Venus"], "B"),
+        ]
+
+        if num_questions <= len(sample_questions):
+            return sample_questions[:num_questions]
+
+        # Loop through samples if more questions requested than provided
+        questions: list[Question] = []
+        for idx in range(num_questions):
+            questions.append(sample_questions[idx % len(sample_questions)])
+        return questions
     
     

@@ -1,4 +1,4 @@
-from constants import NUM_CHOICES
+from game.constants import NUM_CHOICES
 
 class Question:
     def __init__(self, prompt, choices, answer, category=None, difficulty=None):

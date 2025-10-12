@@ -1,10 +1,9 @@
 from pydantic import BaseModel
-from constants import DEFAULT_ELO
 
 class PlayerModel(BaseModel):
     name: str
     id: str
-    elo: int = DEFAULT_ELO
+    elo: int
 
     def get_elo(self):
         return self.elo
