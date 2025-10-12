@@ -1,10 +1,9 @@
 // builtin
 
-import { User } from "../db/user/types";
-
 // external
 
 // internal
+import type { User } from "../db/user/types";
 
 
 export interface QueueRequest {

@@ -2,22 +2,33 @@
 // builtin 
 
 // external
+import { useEffect, useState } from "react";
 
 // internal
-
-import { useEffect, useState } from "react";
 import type { GameState } from "../../lib/game/types";
+import { useWebSocket } from "@/hooks/useWebsocket";
+import type { GameMessage, GameRequest } from "@/lib/game/game-ws-types";
+import { getSelectedLetter } from "@/lib/game/utils";
+
+const WEBSOCKET_URL = process.env.NEXT_PUBLIC_WEBSOCKET_URL;
+if (!WEBSOCKET_URL) throw new Error("Environment variable NEXT_PUBLIC_WEBSOCKET_URL is not set!");
 
 interface GameRoomProps {
     gameState: GameState;
-    onAnswer: (choiceIndex: number) => void;
-    currentUserId: string;
+    userId: string;
+    gameId: string;
 }
 
-export default function GameRoom({ gameState, onAnswer, currentUserId }: GameRoomProps) {
-    const { currentQuestion, players } = gameState;
+export default function GameRoom({ gameState, userId, gameId }: GameRoomProps) {
+    const { currentQuestion, players, closed } = gameState;
     const [selected, setSelected] = useState<number | null>(null);
     const [submitted, setSubmitted] = useState(false);
+    const { send } = useWebSocket<GameRequest, GameMessage>(
+        `${WEBSOCKET_URL}/ws/games/${gameId}/${userId}`,
+        (data) => {
+            console.log(data);
+        }
+    );
 
     const handleSelect = (idx: number) => {
         if (!submitted) setSelected(idx);
@@ -25,10 +36,16 @@ export default function GameRoom({ gameState, onAnswer, currentUserId }: GameRoo
 
     const handleSubmit = () => {
         if (selected !== null && !submitted) {
-            onAnswer(selected);
+
+            const answer = getSelectedLetter(selected);
+            // send({ player: userId, answer: selected });
             setSubmitted(true);
         }
     };
+
+    const handleAdvance = () => {
+        // send to websocket
+    }
 
     // biome-ignore lint/correctness/useExhaustiveDependencies: Just wrong
     useEffect(() => {
@@ -45,6 +62,12 @@ export default function GameRoom({ gameState, onAnswer, currentUserId }: GameRoo
             if (e.key === "Enter") {
                 if (selected !== null) {
                     handleSubmit();
+                }
+            }
+
+            if (e.key === "N") {
+                if (closed) {
+                    handleAdvance();
                 }
             }
         };
@@ -71,14 +94,25 @@ export default function GameRoom({ gameState, onAnswer, currentUserId }: GameRoo
                             </button>
                         ))}
                     </div>
-                    <button
-                        type="button"
-                        className="mt-4 px-6 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
-                        onClick={handleSubmit}
-                        disabled={selected === null || submitted}
-                    >
-                        Submit Answer
-                    </button>
+                    <div className="flex justify-between w-full mt-4">
+                        <button
+                            type="button"
+                            className="px-6 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
+                            onClick={handleSubmit}
+                            disabled={selected === null || submitted}
+                        >
+                            Submit Answer
+                        </button>
+
+                        <button
+                            type="button"
+                            className="px-6 py-2 bg-violet-600 text-white rounded disabled:opacity-50"
+                            onClick={handleAdvance}
+                            disabled={!closed}
+                        >
+                            Next Question
+                        </button>
+                    </div>
                     {submitted && <div className="mt-2 text-green-600">Answer submitted!</div>}
                 </div>
             </div>
@@ -87,7 +121,7 @@ export default function GameRoom({ gameState, onAnswer, currentUserId }: GameRoo
                 <h3 className="text-lg font-semibold mb-2">Players</h3>
                 <ul className="space-y-1">
                     {players.map((player) => {
-                        const isCurrent = player.user.user_id === currentUserId;
+                        const isCurrent = player.user.user_id === userId;
                         const submittedColor = !isCurrent && player.answered ? "bg-blue-200" : "";
                         return (
                             <li

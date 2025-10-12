@@ -33,20 +33,21 @@ export const sampleGameState: GameState = {
         answer: "Paris",
     },
     answering: undefined,
+    closed: false,
 };
 
-export default function GameRoomClient() {
+export interface GameRoomClientProp {
+    userId: string;
+}
+
+export default function GameRoomClient({ userId }: GameRoomClientProp) {
     const { id } = useParams();
 
-
     return (
-        <>
-            <div>Game: {id}</div>
-            <GameRoom
-                gameState={sampleGameState}
-                currentUserId="u2"
-                onAnswer={() => { }}
-            />
-        </>
+        <GameRoom
+            gameState={sampleGameState}
+            userId={userId}
+            gameId={id as string}
+        />
     );
 }
