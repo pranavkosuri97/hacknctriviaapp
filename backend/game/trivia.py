@@ -133,7 +133,6 @@ class TriviaGame:
             "points_earned": points_earned,
             "current_scores": self.get_scores(),
             "question_number": self.get_question_number(),
-            "remaining_players": len(self.players) - len(self.current_answers),
         }
         await self._dispatch_event("answer_received", payload)
 

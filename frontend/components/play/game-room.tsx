@@ -2,22 +2,32 @@
 // builtin 
 
 // external
+import { useEffect, useState } from "react";
 
 // internal
-
-import { useEffect, useState } from "react";
 import type { GameState } from "../../lib/game/types";
+import { useWebSocket } from "@/hooks/useWebsocket";
+import type { GameMessage, GameRequest } from "@/lib/game/game-ws-types";
+
+const WEBSOCKET_URL = process.env.NEXT_PUBLIC_WEBSOCKET_URL;
+if (!WEBSOCKET_URL) throw new Error("Environment variable NEXT_PUBLIC_WEBSOCKET_URL is not set!");
 
 interface GameRoomProps {
     gameState: GameState;
-    onAnswer: (choiceIndex: number) => void;
-    currentUserId: string;
+    userId: string;
+    gameId: string;
 }
 
-export default function GameRoom({ gameState, onAnswer, currentUserId }: GameRoomProps) {
+export default function GameRoom({ gameState, userId, gameId }: GameRoomProps) {
     const { currentQuestion, players } = gameState;
     const [selected, setSelected] = useState<number | null>(null);
     const [submitted, setSubmitted] = useState(false);
+    const { send } = useWebSocket<GameRequest, GameMessage>(
+        `${WEBSOCKET_URL}/ws/games/${gameId}/${userId}`,
+        (data) => {
+            console.log(data);
+        }
+    );
 
     const handleSelect = (idx: number) => {
         if (!submitted) setSelected(idx);
@@ -25,7 +35,7 @@ export default function GameRoom({ gameState, onAnswer, currentUserId }: GameRoo
 
     const handleSubmit = () => {
         if (selected !== null && !submitted) {
-            onAnswer(selected);
+            // send({ player: userId, answer: selected });
             setSubmitted(true);
         }
     };
@@ -87,7 +97,7 @@ export default function GameRoom({ gameState, onAnswer, currentUserId }: GameRoo
                 <h3 className="text-lg font-semibold mb-2">Players</h3>
                 <ul className="space-y-1">
                     {players.map((player) => {
-                        const isCurrent = player.user.user_id === currentUserId;
+                        const isCurrent = player.user.user_id === userId;
                         const submittedColor = !isCurrent && player.answered ? "bg-blue-200" : "";
                         return (
                             <li
