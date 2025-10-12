@@ -16,6 +16,30 @@ export function getSelectedLetter(index: number): string {
 
 export function getNewGameState(previous: GameState, data: GameMessage): GameState {
     switch (data.type) {
+        case "game_started": {
+            const { question, time_remaining, players } = data.payload;
+            const mappedPlayers = players.map(p => ({
+                user: {
+                    user_id: p.id,
+                    username: p.name,
+                    rating: p.elo,
+                },
+                points: 0,
+                answered: false,
+            }));
+            return {
+                ...previous,
+                currentQuestion: {
+                    question: question.prompt,
+                    choices: question.choices,
+                    answer: ""
+                },
+                players: mappedPlayers,
+                answering: undefined,
+                closed: false,
+                time_remaining,
+            };
+        }
         case "question_advanced": {
             const { question } = data.payload;
             return {

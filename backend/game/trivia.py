@@ -64,16 +64,7 @@ class TriviaGame:
                 "total_questions": self.get_number_questions(),
                 "time_remaining": self.timer,
                 "players": [
-                    {
-                        "id": self.players["player1"].get_id(),
-                        "name": self.players["player1"].playerModel.name,
-                        "elo": self.players["player1"].get_elo(),
-                    },
-                    {
-                        "id": self.players["player2"].get_id(),
-                        "name": self.players["player2"].playerModel.name,
-                        "elo": self.players["player2"].get_elo(),
-                    },
+                    self.players["player1"].playerModel, self.players["player2"].playerModel,
                 ],
             },
         )
@@ -309,7 +300,7 @@ class TriviaGame:
     
     def get_snapshot(self) -> Dict[str, Any]:
         """Get a snapshot of the current game state."""
-        can_advance = len(self.current_answers) == 2 or (len(self.current_answers) == 1 and ((self.players["player1"].get_score() + self.players["player2"].get_score()) / POINTS_CORRECT) == (self.current_question_index + 1)))
+        can_advance = len(self.current_answers) == 2 or (len(self.current_answers) == 1 and ((self.players["player1"].get_score() + self.players["player2"].get_score()) / POINTS_CORRECT) == (self.current_question_index + 1))
         return {
             "game_id": str(self.id),
             "is_running": self.is_running,
