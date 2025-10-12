@@ -14,7 +14,7 @@ export interface GameState {
 }
 
 export interface Player {
-    user: Omit<Omit<User, "first_name">, "last_name">;
+    user: Omit<User, "first_name" | "last_name">;
     points: number;
     answered: boolean;
 }

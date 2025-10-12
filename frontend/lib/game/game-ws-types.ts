@@ -93,4 +93,17 @@ export interface AnswerSnapshot {
     can_advance: boolean,
 }
 
+export interface GameSnapshot {
+    game_id: string;
+    is_running: boolean;
+    is_finished: boolean;
+    current_question_inde: number;
+    can_advance: boolean;
+    total_question: number;
+    time_remaining: number;
+    scores: Map<string, number>;
+    current_question: GameQuestion;
+    players: GamePlayer[];
+}
+
 export type GameMessage = StartedMessage | QuestionAdvancedMessage | AnswerMessage | TimerMessage | ErrorMessage;
