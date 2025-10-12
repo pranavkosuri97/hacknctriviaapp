@@ -21,17 +21,17 @@ export default function PlayerStatistics({ player, results }: PlayerStatisticsPr
     const [selectedScale, setSelectedScale] = useState<number>(14);
     const timeId = useId();
 
-    const sortedResults = [...results].sort((a: GameResult, b: GameResult) => new Date(a.played_at).getTime() - new Date(b.played_at).getTime());
+    const sortedResults = [...results].sort((a: GameResult, b: GameResult) => a.ordinal - b.ordinal);
     const currentRating = player.rating;
 
     const filteredResults = getFilteredResults(sortedResults, selectedScale);
     const recentChange = getAccumulatedChange(filteredResults);
 
-    const ratingData = getRatingData(filteredResults, selectedScale === Infinity ? 10000 : selectedScale);
+    const ratingData = getRatingData(filteredResults, selectedScale);
 
     return (
         <div className="max-w-2xl mx-auto p-4">
-            <h2 className="text-2xl font-bold mb-4">{player.username}'s Statistics</h2>
+            <h2 className="text-2xl font-bold mb-4">{player.username}&apos;s Statistics</h2>
             <div className="mb-4 flex items-center gap-6">
                 <div className="text-xl font-semibold">Current Rating: <span className="font-mono">{currentRating}</span></div>
                 <div className="text-lg">
@@ -62,7 +62,7 @@ export default function PlayerStatistics({ player, results }: PlayerStatisticsPr
                     <table className="min-w-full text-sm">
                         <thead>
                             <tr className="bg-gray-100">
-                                <th className="px-3 py-2 text-left">Date</th>
+                                <th className="px-3 py-2 text-left">Game #</th>
                                 <th className="px-3 py-2 text-left">Game ID</th>
                                 <th className="px-3 py-2 text-left">Result</th>
                                 <th className="px-3 py-2 text-right">Rating Change</th>
@@ -71,16 +71,17 @@ export default function PlayerStatistics({ player, results }: PlayerStatisticsPr
                         </thead>
                         <tbody>
                             {filteredResults
-                                .sort((a: GameResult, b: GameResult) => new Date(b.played_at).getTime() - new Date(a.played_at).getTime())
+                                .slice()
+                                .sort((a: GameResult, b: GameResult) => b.ordinal - a.ordinal)
                                 .map((result: GameResult) => {
-                                    if (!result.game_id) return;
+                                    if (!result.game_id) return null;
                                     let rowColor = "";
                                     if (result.result === GameOutcome.WIN) rowColor = "bg-green-100";
                                     else if (result.result === GameOutcome.LOSS) rowColor = "bg-red-100";
                                     else if (result.result === GameOutcome.DRAW) rowColor = "bg-slate-100";
                                     return (
                                         <tr key={result.id} className={`border-b ${rowColor}`}>
-                                            <td className="px-3 py-2">{new Date(result.played_at).toLocaleDateString()}</td>
+                                            <td className="px-3 py-2">Game {result.ordinal + 1}</td>
                                             <td className="px-3 py-2">{formatGameId(result.game_id)}</td>
                                             <td className="px-3 py-2">{result.result}</td>
                                             <td className="px-3 py-2 text-right">{result.rating_change > 0 ? "+" : ""}{result.rating_change}</td>

@@ -21,7 +21,7 @@ export default async function StatisticsPage() {
         redirect("/auth/create-profile");
     }
 
-    const userGames: GameResult[] = await getGameResultsByPlayerId(client, userId);
+    const userGames: GameResult[] = await getGameResultsByPlayerId(userId);
 
     return (
         <PlayerStatistics player={user} results={userGames} />

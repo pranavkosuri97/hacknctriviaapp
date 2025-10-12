@@ -1,88 +1,89 @@
 // builtin
 
 // external
-import type { SupabaseClient } from '@supabase/supabase-js';
 
 // internal
-import type { GameResult } from './types';
+import { GameOutcome, type BackendGameRow, type GameResult } from "./types";
 
+function resolveBackendUrl(): string {
+    const baseUrl =
+        process.env.NEXT_PUBLIC_BACKEND_URL ||
+        process.env.BACKEND_URL;
 
-export async function getGameResultById(
-    supabase: SupabaseClient,
-    id: number
-): Promise<GameResult | null> {
-    const { data, error } = await supabase
-        .from('game_results')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-    if (error) {
-        if (error.code === 'PGRST116') {
-            return null;
-        }
-        throw new Error(`Failed to get game result: ${error.message}`);
+    if (!baseUrl) {
+        throw new Error("Backend URL is not configured. Set NEXT_PUBLIC_BACKEND_URL or BACKEND_URL.");
     }
 
-    return data as GameResult;
+    return baseUrl.replace(/\/$/, "");
 }
 
-export async function getGameResultsByGameId(
-    supabase: SupabaseClient,
-    gameId: string
-): Promise<GameResult[]> {
-    const { data, error } = await supabase
-        .from('game_results')
-        .select('*')
-        .eq('game_id', gameId);
-
-    if (error) {
-        throw new Error(`Failed to get game results: ${error.message}`);
+function deriveOutcome(row: BackendGameRow, playerId: string): GameOutcome {
+    if (row.winner === "draw") {
+        return GameOutcome.DRAW;
     }
 
-    return data as GameResult[];
+    const isPlayer1 = row.player_1 === playerId;
+    const didWin = (row.winner === "player1" && isPlayer1) || (row.winner === "player2" && !isPlayer1);
+
+    return didWin ? GameOutcome.WIN : GameOutcome.LOSS;
+}
+
+function getPlayerElo(row: BackendGameRow, playerId: string): number | null {
+    if (row.player_1 === playerId) {
+        return row.p1_elo ?? null;
+    }
+    if (row.player_2 === playerId) {
+        return row.p2_elo ?? null;
+    }
+    return null;
 }
 
 export async function getGameResultsByPlayerId(
-    supabase: SupabaseClient,
-    playerId: string
+    playerId: string,
+    limit = 5,
 ): Promise<GameResult[]> {
-    const { data, error } = await supabase
-        .from('game_results')
-        .select('*')
-        .eq('player_id', playerId);
+    const response = await fetch(`${resolveBackendUrl()}/games/${playerId}`);
 
-    if (error) {
-        throw new Error(`Failed to get game results: ${error.message}`);
+    if (!response.ok) {
+        const detail = await response.text();
+        throw new Error(`Failed to fetch player history: ${response.status} ${detail}`);
     }
 
-    return data as GameResult[];
-}
+    const payload: { games?: BackendGameRow[] } = await response.json();
+    const games = payload.games ?? [];
 
-export async function createNewUserGameResult(
-    supabase: SupabaseClient,
-    player_id: string,
-    default_rating: number,
-): Promise<GameResult> {
-    const result: Omit<GameResult, "id"> = {
-        game_id: null,
-        player_id,
-        played_at: new Date(),
-        result: null,
-        rating_change: 0,
-        rating_result: default_rating,
+    const filtered = games.filter((row) => row.player_1 === playerId || row.player_2 === playerId);
+    const sliceStart = Math.max(filtered.length - Math.max(limit, 1), 0);
+    const limited = filtered.slice(sliceStart);
+
+    let previousRating: number | null = null;
+    if (sliceStart > 0) {
+        const priorRow = filtered[sliceStart - 1];
+        previousRating = getPlayerElo(priorRow, playerId);
     }
 
-    const { data, error } = await supabase
-        .from('game_results')
-        .insert([result])
-        .select('*')
-        .single();
+    const results: GameResult[] = [];
 
-    if (error) {
-        throw new Error(`Failed to create game result: ${error.message}`);
-    }
+    limited.forEach((row, idx) => {
+        const playerElo = getPlayerElo(row, playerId);
+        if (playerElo == null) {
+            return;
+        }
 
-    return data as GameResult;
+        const ratingChange = previousRating == null ? 0 : playerElo - previousRating;
+
+        results.push({
+            id: row.id,
+            game_id: row.id,
+            ordinal: sliceStart + idx,
+            result: deriveOutcome(row, playerId),
+            rating_change: ratingChange,
+            rating_result: playerElo,
+        });
+
+        previousRating = playerElo;
+    });
+
+    return results;
 }
 

@@ -12,19 +12,14 @@ import type { GameState } from "@/lib/game/types";
 export const sampleGameState: GameState = {
     players: [
         {
-            user: { user_id: "u1", first_name: "a", last_name: "b", username: "Alice", rating: 100 },
+            user: { user_id: "u1", username: "Alice", rating: 100 },
             points: 10,
             answered: true,
         },
         {
-            user: { user_id: "u2", first_name: "a", last_name: "b", username: "Bob", rating: 120 },
+            user: { user_id: "u2", username: "Bob", rating: 120 },
             points: 8,
             answered: false,
-        },
-        {
-            user: { user_id: "u3", first_name: "a", last_name: "b", username: "Charlie", rating: 110 },
-            points: 12,
-            answered: true,
         },
     ],
     currentQuestion: {
@@ -32,21 +27,24 @@ export const sampleGameState: GameState = {
         choices: ["Berlin", "Madrid", "Paris", "Rome"],
         answer: "Paris",
     },
-    answering: undefined,
+    currentQuestionIndex: 0,
+    closed: false,
+    time_remaining: 100,
+    isFinished: false,
 };
 
-export default function GameRoomClient() {
+export interface GameRoomClientProp {
+    userId: string;
+}
+
+export default function GameRoomClient({ userId }: GameRoomClientProp) {
     const { id } = useParams();
 
-
     return (
-        <>
-            <div>Game: {id}</div>
-            <GameRoom
-                gameState={sampleGameState}
-                currentUserId="u2"
-                onAnswer={() => { }}
-            />
-        </>
+        <GameRoom
+            gameState={sampleGameState}
+            userId={userId}
+            gameId={id as string}
+        />
     );
 }

@@ -19,7 +19,7 @@ const TIME_SCALE = 7;
 
 export default function DashboardStatistics({ player, results }: DashboardStatisticsProps) {
 
-    const sortedResults = [...results].sort((a: GameResult, b: GameResult) => new Date(a.played_at).getTime() - new Date(b.played_at).getTime());
+    const sortedResults = [...results].sort((a: GameResult, b: GameResult) => a.ordinal - b.ordinal);
     const currentRating = player.rating;
 
     const filteredResults = getFilteredResults(sortedResults, TIME_SCALE);

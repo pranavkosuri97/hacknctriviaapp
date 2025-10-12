@@ -2,47 +2,84 @@
 // builtin 
 
 // external
+import { useEffect, useState } from "react";
 
 // internal
-
-import { useEffect, useState } from "react";
 import type { GameState } from "../../lib/game/types";
+import { useWebSocket } from "@/hooks/useWebsocket";
+import { GameAction, type GameMessage, type GameRequest } from "@/lib/game/game-ws-types";
+import { getNewGameState, getSelectedLetter } from "@/lib/game/utils";
+import Link from "next/link";
+
+const WEBSOCKET_URL = process.env.NEXT_PUBLIC_WEBSOCKET_URL;
+if (!WEBSOCKET_URL) throw new Error("Environment variable NEXT_PUBLIC_WEBSOCKET_URL is not set!");
 
 interface GameRoomProps {
     gameState: GameState;
-    onAnswer: (choiceIndex: number) => void;
-    currentUserId: string;
+    userId: string;
+    gameId: string;
 }
 
-export default function GameRoom({ gameState, onAnswer, currentUserId }: GameRoomProps) {
-    const { currentQuestion, players } = gameState;
+export default function GameRoom({ gameState, userId, gameId }: GameRoomProps) {
+    const [state, setState] = useState<GameState>(gameState);
     const [selected, setSelected] = useState<number | null>(null);
     const [submitted, setSubmitted] = useState(false);
+    const { send } = useWebSocket<GameRequest, GameMessage>(
+        `${WEBSOCKET_URL}/ws/games/${gameId}/${userId}`,
+        (data) => {
+            setState(prev => {
+                const previousQuestion = prev.currentQuestion.question;
+                const newState = getNewGameState(prev, data)
+                console.log("Closed?", newState.closed);
+
+                if (previousQuestion !== newState.currentQuestion.question) {
+                    resetButtons();
+                }
+
+                return newState;
+            });
+        }
+    );
+
+    const resetButtons = () => {
+        setSelected(null);
+        setSubmitted(false);
+    }
 
     const handleSelect = (idx: number) => {
         if (!submitted) setSelected(idx);
     };
 
     const handleSubmit = () => {
-        if (selected !== null && !submitted) {
-            onAnswer(selected);
+        if (selected !== null && !submitted && !state.closed) {
+            const answer = getSelectedLetter(selected);
+            send({ type: GameAction.SUBMIT, answer });
             setSubmitted(true);
         }
     };
 
+    const handleAdvance = () => {
+        send({ type: GameAction.ADVANCE });
+    }
+
     // biome-ignore lint/correctness/useExhaustiveDependencies: Just wrong
     useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => {
-            if (submitted) return;
+            if (submitted) {
+                if (e.key === "n" || e.key === "N") {
+                    if (state.closed) {
+                        handleAdvance();
+                    }
+                }
+                return;
+            }
 
             if (e.key >= "1" && e.key <= "9") {
                 const idx = parseInt(e.key, 10) - 1;
-                if (currentQuestion.choices && idx < currentQuestion.choices.length) {
+                if (state.currentQuestion.choices && idx < state.currentQuestion.choices.length) {
                     setSelected(idx);
                 }
-            }
-
-            if (e.key === "Enter") {
+            } else if (e.key === "Enter") {
                 if (selected !== null) {
                     handleSubmit();
                 }
@@ -50,35 +87,77 @@ export default function GameRoom({ gameState, onAnswer, currentUserId }: GameRoo
         };
         window.addEventListener("keydown", onKeyDown);
         return () => window.removeEventListener("keydown", onKeyDown);
-    }, [selected, submitted, currentQuestion.choices]);
+    }, [selected, submitted, state.currentQuestion.choices]);
+
+    if (state.isFinished) {
+        return (
+            <div className="game-result p-8 max-w-xl mx-auto bg-white rounded shadow flex flex-col items-center justify-center">
+                <h2 className="text-2xl font-bold mb-4">Game Over!</h2>
+                <div className="mb-4 w-full">
+                    <h3 className="text-lg font-semibold mb-2">Final Scores</h3>
+                    <ul className="space-y-2">
+                        {state.players.map((player) => (
+                            <li key={player.user.username} className="flex justify-between px-4 py-2 bg-gray-100 rounded">
+                                <span>{player.user.username}</span>
+                                <span className="font-mono">{player.points} pts</span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+                <Link href="/dashboard" className="mt-6 px-6 py-2 bg-blue-600 text-white rounded shadow hover:bg-blue-700">Back to Dashboard</Link>
+            </div>
+        );
+    }
 
     return (
         <div className="game-room p-6 max-w-4xl mx-auto bg-white rounded shadow flex flex-row gap-8">
             <div className="flex-1">
                 <h2 className="text-2xl font-bold mb-4">Trivia Question</h2>
+                <div className="mb-2 flex items-center justify-between">
+                    <div className="text-lg font-semibold">{state.currentQuestion.question}</div>
+                    <div className="text-lg font-mono px-3 py-1 bg-gray-200 rounded">
+                        ⏰ {state.time_remaining ?? 0}s
+                    </div>
+                </div>
                 <div className="mb-6">
-                    <div className="text-lg font-semibold mb-2">{currentQuestion.question}</div>
                     <div className="grid grid-cols-1 gap-2">
-                        {currentQuestion.choices?.map((choice, idx) => (
+                        {state.currentQuestion.choices?.map((choice, idx) => {
+                            let buttonColor = (selected === idx) ? "bg-blue-100 border-blue-500" : "bg-gray-50";
+                            if (state.closed) {
+                                buttonColor = (choice === state.currentQuestion.answer) ? "bg-green-600" : "bg-gray-300";
+                            }
+                            return (
                             <button
                                 type="button"
                                 key={choice}
-                                className={`border rounded px-4 py-2 text-left ${selected === idx ? "bg-blue-100 border-blue-500" : "bg-gray-50"}`}
+                                className={`border rounded px-4 py-2 text-left ${buttonColor}`}
                                 onClick={() => handleSelect(idx)}
                                 disabled={submitted}
                             >
                                 <span className="font-bold mr-2">{idx + 1}.</span> {choice}
                             </button>
-                        ))}
+                        )}
+                        )}
                     </div>
-                    <button
-                        type="button"
-                        className="mt-4 px-6 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
-                        onClick={handleSubmit}
-                        disabled={selected === null || submitted}
-                    >
-                        Submit Answer
-                    </button>
+                    <div className="flex justify-between w-full mt-4">
+                        <button
+                            type="button"
+                            className="px-6 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
+                            onClick={handleSubmit}
+                            disabled={selected === null || submitted || state.closed}
+                        >
+                            Submit Answer
+                        </button>
+
+                        <button
+                            type="button"
+                            className="px-6 py-2 bg-violet-600 text-white rounded disabled:opacity-50"
+                            onClick={handleAdvance}
+                            disabled={!state.closed}
+                        >
+                            Next Question
+                        </button>
+                    </div>
                     {submitted && <div className="mt-2 text-green-600">Answer submitted!</div>}
                 </div>
             </div>
@@ -86,8 +165,8 @@ export default function GameRoom({ gameState, onAnswer, currentUserId }: GameRoo
             <div className="w-64 flex-shrink-0">
                 <h3 className="text-lg font-semibold mb-2">Players</h3>
                 <ul className="space-y-1">
-                    {players.map((player) => {
-                        const isCurrent = player.user.user_id === currentUserId;
+                    {state.players.map((player) => {
+                        const isCurrent = player.user.user_id === userId;
                         const submittedColor = !isCurrent && player.answered ? "bg-blue-200" : "";
                         return (
                             <li
