@@ -289,6 +289,33 @@ class TriviaGame:
             return "player2"
         return "draw"
 
+    def get_snapshot(self) -> Dict[str, Any]:
+        """Get a snapshot of the current game state."""
+        can_advance = len(self.current_answers) == 2 or (len(self.current_answers) == 1 and ((self.players["player1"].get_score() + self.players["player2"].get_score()) / POINTS_CORRECT) == (self.current_question_index + 1))
+        return {
+            "game_id": str(self.id),
+            "is_running": self.is_running,
+            "is_finished": self.is_finished,
+            "current_question_index": self.current_question_index,
+            "can_advance": can_advance,
+            "total_questions": self.get_number_questions(),
+            "time_remaining": self.timer,
+            "scores": self.get_scores(),
+            "current_question": self._serialize_current_question(),
+            "players": [
+                {
+                    "id": self.players["player1"].get_id(),
+                    "name": self.players["player1"].playerModel.name,
+                    "elo": self.players["player1"].get_elo(),
+                },
+                {
+                    "id": self.players["player2"].get_id(),
+                    "name": self.players["player2"].playerModel.name,
+                    "elo": self.players["player2"].get_elo(),
+                },
+            ],
+        }
+
     @staticmethod
     def load_questions(num_questions: int = 1) -> list[Question]:
         """Fetch questions from DB with fully random subjects but ensure >=1 per subject when possible.
@@ -366,3 +393,5 @@ class TriviaGame:
 
         except Exception:
             return _fallback(num_questions)
+    
+    
