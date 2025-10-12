@@ -41,6 +41,7 @@ class GameManager:
             p2=player2,
             timer_length=timer_length,
             num_questions=num_questions,
+            match_type="Normal"
         )
         return game_id
 
