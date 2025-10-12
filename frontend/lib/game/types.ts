@@ -9,6 +9,7 @@ export interface GameState {
     players: Player[];
     currentQuestion: Question;
     answering: Player | undefined;
+    time_remaining: number;
     closed: boolean;
 }
 

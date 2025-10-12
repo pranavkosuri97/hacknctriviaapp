@@ -22,9 +22,28 @@ export enum QueueStatus {
     LEAVE = "leave"
 }
 
-export interface QueueMessage {
-    gameId: string;
+export interface GameFoundMessage {
+    type: QueueResponse.GAME_FOUND;
+    game_id: string;
+    opponent?: Opponent;
 }
+
+export interface ErrorMessage {
+    type: QueueResponse.ERROR;
+    message: string;
+}
+
+export interface Opponent {
+    name: string;
+    id: string;
+}
+
+export enum QueueResponse {
+    GAME_FOUND = "game_found",
+    ERROR = "error"
+}
+
+export type QueueMessage = GameFoundMessage | ErrorMessage;
 
 export function mapUserToPlayer(user: User): QueuePlayerData {
     return {
