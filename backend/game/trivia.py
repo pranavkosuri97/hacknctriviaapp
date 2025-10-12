@@ -63,6 +63,14 @@ class TriviaGame:
                 "question_number": self.get_question_number(),
                 "total_questions": self.get_number_questions(),
                 "time_remaining": self.timer,
+                "players": {
+                    self.players["player1"].get_id(): {
+                        "name": self.players["player1"].playerModel.name,
+                    },
+                    self.players["player2"].get_id(): {
+                        "name": self.players["player2"].playerModel.name,
+                    },
+                },
             },
         )
 
