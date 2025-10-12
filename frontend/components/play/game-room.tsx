@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import type { GameState } from "../../lib/game/types";
 import { useWebSocket } from "@/hooks/useWebsocket";
 import type { GameMessage, GameRequest } from "@/lib/game/game-ws-types";
+import { getSelectedLetter } from "@/lib/game/utils";
 
 const WEBSOCKET_URL = process.env.NEXT_PUBLIC_WEBSOCKET_URL;
 if (!WEBSOCKET_URL) throw new Error("Environment variable NEXT_PUBLIC_WEBSOCKET_URL is not set!");
@@ -35,6 +36,8 @@ export default function GameRoom({ gameState, userId, gameId }: GameRoomProps) {
 
     const handleSubmit = () => {
         if (selected !== null && !submitted) {
+
+            const answer = getSelectedLetter(selected);
             // send({ player: userId, answer: selected });
             setSubmitted(true);
         }
