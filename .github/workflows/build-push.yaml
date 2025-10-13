@@ -31,8 +31,8 @@ jobs:
         username: ${{ secrets.DOCKER_HUB_USER }}
         password: ${{ secrets.DOCKER_HUB_PAT }}
     -
-      name: Docker compose build
-      run: docker compose build --push
+      name: Docker Build and Push API
+      run: docker buildx build --push --build-arg SUPABASE_URL=${{ secrets.SUPABASE_URL }} --build-arg SUPABASE_SERVICE_KEY=${{ secrets.SUPABASE_SERVICE_KEY }} --platform linux/amd64,linux/arm64 -f ./backend/Dockerfile -t ansharyan03/triviate-api:latest ./backend
     - 
-      name: Docker compose push
-      run: docker compose push
+      name: Docker Build and Push Web
+      run: docker buildx build --push --build-arg NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY=${{ secrets.SUPABASE_SERVICE_KEY }} --build-arg NEXT_PUBLIC_SUPABASE_URL=${{ secrets.SUPABASE_URL }} --build-arg NEXT_PUBLIC_BACKEND_URL=${{ secrets.BACKEND_URL }} --build-arg NEXT_PUBLIC_WEBSOCKET_URL=${{ secrets.WEBSOCKET_URL }} --platform linux/amd64,linux/arm64 -f ./frontend/Dockerfile -t ansharyan03/triviate:latest ./frontend

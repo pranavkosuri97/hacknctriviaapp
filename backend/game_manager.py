@@ -22,7 +22,7 @@ class GameManager:
         player1: PlayerModel,
         player2: PlayerModel,
         timer_length: int = 300,
-        num_questions: int = 5,
+        num_questions: int = 10,
     ) -> str:
         game = TriviaGame(player1, player2, timer_length, num_questions)
         game.set_event_callback(self.handle_game_event)
