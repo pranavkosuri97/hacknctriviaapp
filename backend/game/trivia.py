@@ -6,7 +6,7 @@ from typing import Any, Awaitable, Callable, Dict, Optional, Set
 from uuid import uuid4
 import random
 
-from game.constants import POINTS_CORRECT, GameActions
+from game.constants import POINTS_CORRECT, GameEvents
 from game.player import Player, PlayerModel
 from game.question import Question
 from questions import get_random_questions
@@ -45,9 +45,6 @@ class TriviaGame:
         self.is_finished = False
         self.event_callback: Optional[EventCallback] = None
 
-    # ------------------------------------------------------------------
-    # Public lifecycle methods
-    # ------------------------------------------------------------------
     async def run_game_loop(self) -> None:
         """Run the main game loop (timer + automatic progression)."""
         if self.is_running:
@@ -57,7 +54,7 @@ class TriviaGame:
         self.is_finished = False
 
         await self._dispatch_event(
-            "game_started",
+            GameEvents.START,
             {
                 "game_id": str(self.id),
                 "question": self._serialize_current_question(),
@@ -79,7 +76,7 @@ class TriviaGame:
                 self.timer = max(0, self.timer - 1)
 
                 await self._dispatch_event(
-                    "timer_update",
+                    GameEvents.TICK,
                     {
                         "game_id": str(self.id),
                         "time_remaining": self.timer,
@@ -95,7 +92,7 @@ class TriviaGame:
                     break
         except Exception as exc:  # pragma: no cover - defensive
             await self._dispatch_event(
-                "game_error",
+                GameEvents.ERROR,
                 {
                     "game_id": str(self.id),
                     "error": str(exc),
@@ -129,8 +126,9 @@ class TriviaGame:
         else:
             can_advance = True  # Both players have already answered
 
-        
-        payload = {
+        await self._dispatch_event(
+            GameEvents.ANSWER,
+            {
             "game_id": str(self.id),
             "player_id": player_id,
             "answer": answer,
@@ -140,7 +138,7 @@ class TriviaGame:
             "question_number": self.get_question_number(),
             "can_advance": can_advance,
         }
-        await self._dispatch_event("answer_received", payload)
+        )
 
         return {"status": "ok", "is_correct": is_correct}
 
@@ -178,7 +176,7 @@ class TriviaGame:
             return
 
         await self._dispatch_event(
-            "question_advanced",
+            GameEvents.ADVANCE,
             {
                 "game_id": str(self.id),
                 "question": self._serialize_current_question(),
@@ -230,7 +228,7 @@ class TriviaGame:
 
 
         await self._dispatch_event(
-            "game_ended",
+            GameEvents.FINISH,
             {
                 "game_id": str(self.id),
                 "reason": reason,

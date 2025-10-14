@@ -37,7 +37,6 @@ class Question:
         return self.choices
 
     def answer_correct(self, choice):
-        # Handle both letter and numeric inputs
         if isinstance(choice, str):
             choice = (ord(choice.upper()) - ord("A")) % NUM_CHOICES
         return choice == self.answer
